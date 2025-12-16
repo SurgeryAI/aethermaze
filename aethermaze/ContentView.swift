@@ -58,8 +58,11 @@ struct ARViewContainer: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         // 1. Create the ARView in Non-AR mode (Standard 3D game mode)
         let arView = ARView(frame: .zero)
-        arView.cameraMode = .nonAR
-        arView.automaticallyConfigureSession = true
+
+        #if os(iOS)
+            arView.cameraMode = .nonAR
+            arView.automaticallyConfigureSession = true
+        #endif
 
         // 2. Setup the Game Scene
         setupGame(arView: arView)
@@ -88,7 +91,7 @@ struct ARViewContainer: UIViewRepresentable {
         // If the gameCoordinator.gameState just switched to .playing (after a win/loss), we might need to reset.
         // But for "Next Level", we genuinely need to rebuild.
 
-        if let gameAnchor = uiView.scene.findEntity(named: anchorName) {
+        if let gameAnchor = uiView.scene.findEntity(named: anchorName) as? AnchorEntity {
 
             // Helper to check if we need to rebuild the level (e.g. level index mismatch)
             let currentBuiltLevel = gameAnchor.components[LevelComponent.self]?.level ?? -1
@@ -150,11 +153,11 @@ struct ARViewContainer: UIViewRepresentable {
         let camera = PerspectiveCamera()
         let levelSize = Float(5 + gameCoordinator.currentLevel * 2)
         // Adjust camera based on level size
-        let camHeight = max(8, levelSize * 1.2)
-        let camDist = max(8, levelSize * 1.2)
+        let camHeight = max(8.0, levelSize * 1.2)
+        let camDist = max(8.0, levelSize * 1.2)
 
         camera.look(
-            at: [levelSize / 2, 0, levelSize / 2], from: [levelSize / 2, camHeight, camDist],
+            at: [levelSize / 2, 0.0, levelSize / 2], from: [levelSize / 2, camHeight, camDist],
             relativeTo: gameAnchor)
 
         let cameraAnchor = AnchorEntity(world: [0, 0, 0])
