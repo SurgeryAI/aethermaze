@@ -76,16 +76,32 @@ class SoundManager: ObservableObject {
         let speed = Double(velocity)
         let maxSpeed = 3.0  // Reference max speed
 
-        // Volume: 0 to 1
-        let targetVolume = Float(min(speed / maxSpeed, 1.0)) * 2.0  // Boost gain slightly
+        let threshold: Float = 0.03
 
-        // Frequency: 200Hz to 2000Hz?
-        let minFreq = 100.0
-        let maxFreq = 1000.0
-        let targetFreq = minFreq + (maxFreq - minFreq) * (min(speed / maxSpeed, 1.0))
+        if velocity > threshold {
+            let normalized = min(speed / maxSpeed, 1.0)
+            // Volume uses quadratic curve for smoother fade-in
+            let targetVolume = pow(normalized, 2)
 
-        playerNode.volume = targetVolume
-        equalizer.bands[0].frequency = Float(targetFreq)
+            // Frequency: 80Hz to 800Hz capped range
+            let minFreq = 80.0
+            let maxFreq = 800.0
+            let targetFreq = minFreq + (maxFreq - minFreq) * normalized
+
+            playerNode.volume = Float(targetVolume)
+            equalizer.bands[0].frequency = Float(targetFreq)
+
+            if !isPlaying {
+                playerNode.play()
+                isPlaying = true
+            }
+        } else {
+            playerNode.volume = 0.0
+            if isPlaying {
+                playerNode.pause()
+                isPlaying = false
+            }
+        }
     }
 }
 
