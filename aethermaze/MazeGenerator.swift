@@ -139,7 +139,14 @@ final class MazeGenerator {
         let collision = CollisionComponent(shapes: [shape])
         winZone.components.set(collision)
 
-        // Visual marker for the end (Green flag/light)
+        // Visual marker for the end (Green Pad)
+        let padMesh = MeshResource.generateBox(width: 0.6, height: 0.01, depth: 0.6)
+        let padMat = SimpleMaterial(color: .green, isMetallic: false)
+        let pad = ModelEntity(mesh: padMesh, materials: [padMat])
+        pad.position = [0, 0.01, 0]
+        winZone.addChild(pad)
+
+        // Keep floating marker but maybe higher?
         let markerMesh = MeshResource.generateSphere(radius: 0.2)
         let markerMat = SimpleMaterial(color: .green, isMetallic: false)
         let marker = ModelEntity(mesh: markerMesh, materials: [markerMat])
@@ -158,6 +165,7 @@ final class MazeGenerator {
 
                 let basePosition = SIMD3<Float>(Float(x) * unitSize, 0, Float(y) * unitSize)
 
+                // Existing Checks for East/South (Internal & Outer East/South)
                 if cell.walls[.east] == true {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
                     wall.position = basePosition + SIMD3<Float>(unitSize / 2, 0.1, 0)
@@ -166,7 +174,7 @@ final class MazeGenerator {
                         CollisionComponent(shapes: [
                             .generateBox(width: unitSize, height: 0.2, depth: 0.05)
                         ]))
-                    wall.name = "Wall"  // [NEW] Name for collision detection
+                    wall.name = "Wall"
                     parent.addChild(wall)
                 }
 
@@ -179,7 +187,37 @@ final class MazeGenerator {
                         CollisionComponent(shapes: [
                             .generateBox(width: unitSize, height: 0.2, depth: 0.05)
                         ]))
-                    wall.name = "Wall"  // [NEW] Name for collision detection
+                    wall.name = "Wall"
+                    parent.addChild(wall)
+                }
+
+                // [NEW] Border Checks: North and West
+                // Only needed for y==0 (North) and x==0 (West) because internal walls are covered by the neighbor's South/East
+
+                if y == 0 && cell.walls[.north] == true {
+                    let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
+                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+                    wall.position = basePosition + SIMD3<Float>(0, 0.1, -unitSize / 2)
+                    wall.components.set(wallPhysicsComponent())
+                    wall.components.set(
+                        CollisionComponent(shapes: [
+                            .generateBox(width: unitSize, height: 0.2, depth: 0.05)
+                        ]))
+                    wall.name = "Wall"
+                    parent.addChild(wall)
+                }
+
+                if x == 0 && cell.walls[.west] == true {
+                    let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
+                    // No rotation needed for vertical wall? West wall runs North-South.
+                    // East wall was default.
+                    wall.position = basePosition + SIMD3<Float>(-unitSize / 2, 0.1, 0)
+                    wall.components.set(wallPhysicsComponent())
+                    wall.components.set(
+                        CollisionComponent(shapes: [
+                            .generateBox(width: unitSize, height: 0.2, depth: 0.05)
+                        ]))
+                    wall.name = "Wall"
                     parent.addChild(wall)
                 }
 
@@ -195,11 +233,17 @@ final class MazeGenerator {
     }
 
     private func createStartZone(parent: Entity) {
-        // Visual marker for the start (Blue)
-        let markerMesh = MeshResource.generateSphere(radius: 0.2)
-        let markerMat = SimpleMaterial(color: .blue, isMetallic: false)
+        // Visual marker for the start (Blue Pad on Floor)
+        // Cylinder height 0.01, radius 0.3
+        let markerMesh = MeshResource.generateBox(width: 0.6, height: 0.01, depth: 0.6)
+        var markerMat = SimpleMaterial(color: .blue, isMetallic: false)
+        // Make it slightly transparent?
+        // markerMat.baseColor = MaterialColorParameter.color(UIColor.blue.withAlphaComponent(0.5))
+        // SimpleMaterial doesn't support alpha well in non-PBR. Use PBR if needed.
+        // Just solid blue is fine.
+
         let marker = ModelEntity(mesh: markerMesh, materials: [markerMat])
-        marker.position = [0, 0.5, 0]  // Floating above start
+        marker.position = [0, 0.01, 0]  // Just above floor limit (0 and -0.05)
         marker.name = "StartMarker"
 
         // No collision, just visual guide

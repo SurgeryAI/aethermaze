@@ -153,8 +153,9 @@ struct ARViewContainer: UIViewRepresentable {
         let camera = PerspectiveCamera()
         let levelSize = Float(5 + gameCoordinator.currentLevel * 2)
         // Adjust camera based on level size
-        let camHeight = max(8.0, levelSize * 1.2)
-        let camDist = max(8.0, levelSize * 1.2)
+        // Increased height and distance to ensure full maze visibility including borders
+        let camHeight = max(10.0, levelSize * 1.8)
+        let camDist = max(10.0, levelSize * 1.8)
 
         // Attach Camera to GameAnchor so it moves WITH the board tilt.
         // This makes the board look stationary on screen, but Gravity (World) will change relative to it.
