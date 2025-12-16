@@ -118,6 +118,20 @@ struct ARViewContainer: UIViewRepresentable {
                 // Smoothly animate
                 // Note: move(to: ...) is better for smoothing if avail, but setting property works for 60fps too
                 gameAnchor.transform.rotation = rotation
+                if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity {
+
+                    // [NEW] Audio Updates
+                    // Ensure engine connects if needed (lazy start)
+                    SoundManager.shared.startEngine()
+
+                    if let velocity = marble.physicsMotion?.linearVelocity {
+                        let speed = length(velocity)
+                        SoundManager.shared.updateRollingSound(velocity: speed)
+                    }
+
+                    // Check if one is Marble and other is DeathPlane or WinZone
+                    // ... (keep existing Logic if it was here, or we are adding this to the frame update)
+                }
             }
 
             // Death/Win Logic Handling is done via Event Subscription in makeCoordinator

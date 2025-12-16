@@ -530,13 +530,15 @@ final class MazeGenerator {
     }
 
     private func create3DWalls(parent: Entity) {
-        let wallMesh = MeshResource.generateBox(width: unitSize, height: 0.2, depth: 0.05)
+        // Increased height to 0.5 (was 0.2) to prevent jumping
+        let wallMesh = MeshResource.generateBox(width: unitSize, height: 0.5, depth: 0.05)
         let wallMaterial = SimpleMaterial(color: .gray, isMetallic: false)
 
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
 
                 let basePosition = SIMD3<Float>(Float(x) * unitSize, 0, Float(y) * unitSize)
+                let wallY: Float = 0.25  // Half of 0.5
 
                 // Existing Checks for East/South (Internal & Outer East/South)
                 if cell.walls[.east] == true {
@@ -544,11 +546,11 @@ final class MazeGenerator {
                     // East wall separates X and X+1. Needs to run along Z.
                     // Original mesh is X-long. So Rotate 90 Y.
                     wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(unitSize / 2, 0.1, 0)
+                    wall.position = basePosition + SIMD3<Float>(unitSize / 2, wallY, 0)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: 0.2, depth: 0.05)
+                            .generateBox(width: unitSize, height: 0.5, depth: 0.05)
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -559,11 +561,11 @@ final class MazeGenerator {
                     // South wall separates Y and Y+1 (Z and Z+1). Needs to run along X.
                     // Original mesh is X-long. No Rotation.
                     // wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(0, 0.1, unitSize / 2)
+                    wall.position = basePosition + SIMD3<Float>(0, wallY, unitSize / 2)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: 0.2, depth: 0.05)
+                            .generateBox(width: unitSize, height: 0.5, depth: 0.05)
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -576,11 +578,11 @@ final class MazeGenerator {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
                     // No Rotation
                     // wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(0, 0.1, -unitSize / 2)
+                    wall.position = basePosition + SIMD3<Float>(0, wallY, -unitSize / 2)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: 0.2, depth: 0.05)
+                            .generateBox(width: unitSize, height: 0.5, depth: 0.05)
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -589,11 +591,11 @@ final class MazeGenerator {
                 if x == 0 && cell.walls[.west] == true {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
                     wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(-unitSize / 2, 0.1, 0)
+                    wall.position = basePosition + SIMD3<Float>(-unitSize / 2, wallY, 0)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: 0.2, depth: 0.05)
+                            .generateBox(width: unitSize, height: 0.5, depth: 0.05)
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
