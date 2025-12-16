@@ -78,8 +78,11 @@ class SoundManager: ObservableObject {
         let maxSpeed = 3.0  // Reference max speed
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         let threshold: Float = 0.03
 =======
+=======
+>>>>>>> main
         if speed < 0.1 {
             playerNode.volume = 0
             return
