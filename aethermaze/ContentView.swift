@@ -201,7 +201,7 @@ struct ARViewContainer: UIViewRepresentable {
                         if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity {
                             // Stop momentum
                             marble.physicsBody?.mode = .static  // Temporary freeze
-                            marble.position = [0, 0.5, 0]
+                            marble.position = [0, 0.2, 0]
                             marble.physicsBody?.mode = .dynamic
                         }
                     }

@@ -31,15 +31,18 @@ final class MazeGenerator {
 
         generateRecursiveBacktracker(width: size, height: size)
 
-        placeStartAndEnd(size: size)
+        generateRecursiveBacktracker(width: size, height: size)
+
         placeHoles(level: level)
+        placeStartAndEnd(size: size)  // Ensure start/end are always clear
 
         // Pass the parent entity to these functions
         create3DFloor(parent: parent)
         create3DWalls(parent: parent)
-        create3DMarble(parent: parent)
-        createDeathPlane(parent: parent)
+        createStartZone(parent: parent)  // [NEW] Visual start
         createWinZone(size: size, parent: parent)
+        create3DMarble(parent: parent)  // Create marble last
+        createDeathPlane(parent: parent)
     }
 
     // ... (generateRecursiveBacktracker, placeStartAndEnd, placeHoles remain same) ...
@@ -191,6 +194,18 @@ final class MazeGenerator {
         return physics
     }
 
+    private func createStartZone(parent: Entity) {
+        // Visual marker for the start (Blue)
+        let markerMesh = MeshResource.generateSphere(radius: 0.2)
+        let markerMat = SimpleMaterial(color: .blue, isMetallic: false)
+        let marker = ModelEntity(mesh: markerMesh, materials: [markerMat])
+        marker.position = [0, 0.5, 0]  // Floating above start
+        marker.name = "StartMarker"
+
+        // No collision, just visual guide
+        parent.addChild(marker)
+    }
+
     private func create3DMarble(parent: Entity) {
         let marbleMesh = MeshResource.generateSphere(radius: 0.15)  // Slightly larger marble
 
@@ -201,7 +216,10 @@ final class MazeGenerator {
 
         let marble = ModelEntity(mesh: marbleMesh, materials: [marbleMaterial])
         marble.name = "Marble"
-        marble.position = [0.0, 0.5, 0.0]
+        // Lower spawn height to reduce impact/clipping risk
+        // Floor is at 0.0 surface. Radius is 0.15. Center at 0.15 means touching.
+        // 0.2 gives a tiny drop.
+        marble.position = [0.0, 0.2, 0.0]
 
         let physicsBody = PhysicsBodyComponent(
             massProperties: .default, material: .generate(friction: 0.5, restitution: 0.5),
