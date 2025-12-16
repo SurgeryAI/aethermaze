@@ -168,6 +168,9 @@ final class MazeGenerator {
                 // Existing Checks for East/South (Internal & Outer East/South)
                 if cell.walls[.east] == true {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
+                    // East wall separates X and X+1. Needs to run along Z.
+                    // Original mesh is X-long. So Rotate 90 Y.
+                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
                     wall.position = basePosition + SIMD3<Float>(unitSize / 2, 0.1, 0)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
@@ -180,7 +183,9 @@ final class MazeGenerator {
 
                 if cell.walls[.south] == true {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+                    // South wall separates Y and Y+1 (Z and Z+1). Needs to run along X.
+                    // Original mesh is X-long. No Rotation.
+                    // wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
                     wall.position = basePosition + SIMD3<Float>(0, 0.1, unitSize / 2)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
@@ -196,7 +201,8 @@ final class MazeGenerator {
 
                 if y == 0 && cell.walls[.north] == true {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+                    // No Rotation
+                    // wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
                     wall.position = basePosition + SIMD3<Float>(0, 0.1, -unitSize / 2)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
@@ -209,8 +215,7 @@ final class MazeGenerator {
 
                 if x == 0 && cell.walls[.west] == true {
                     let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    // No rotation needed for vertical wall? West wall runs North-South.
-                    // East wall was default.
+                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
                     wall.position = basePosition + SIMD3<Float>(-unitSize / 2, 0.1, 0)
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
@@ -228,7 +233,7 @@ final class MazeGenerator {
 
     private func wallPhysicsComponent() -> PhysicsBodyComponent {
         var physics = PhysicsBodyComponent(massProperties: .default, mode: .kinematic)
-        physics.material = .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.5)
+        physics.material = .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.1)
         return physics
     }
 
@@ -266,7 +271,7 @@ final class MazeGenerator {
         marble.position = [0.0, 0.2, 0.0]
 
         let physicsBody = PhysicsBodyComponent(
-            massProperties: .default, material: .generate(friction: 0.5, restitution: 0.5),
+            massProperties: .default, material: .generate(friction: 0.5, restitution: 0.1),
             mode: .dynamic)
         marble.components.set(physicsBody)
         marble.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.15)]))
