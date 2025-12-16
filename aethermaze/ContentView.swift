@@ -118,7 +118,7 @@ struct ARViewContainer: UIViewRepresentable {
                 // Smoothly animate
                 // Note: move(to: ...) is better for smoothing if avail, but setting property works for 60fps too
                 gameAnchor.transform.rotation = rotation
-                if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity {
+                if let marble = uiView.scene.findEntity(named: "Marble") as? ModelEntity {
 
                     // [NEW] Audio Updates
                     // Ensure engine connects if needed (lazy start)
@@ -248,3 +248,4 @@ struct ARViewContainer: UIViewRepresentable {
 struct LevelComponent: Component {
     var level: Int
 }
+

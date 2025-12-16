@@ -1,6 +1,9 @@
+import SwiftUI
+import Combine
 import AVFoundation
 
 class SoundManager: ObservableObject {
+    
     static let shared = SoundManager()
 
     private var engine: AVAudioEngine!
@@ -85,3 +88,4 @@ class SoundManager: ObservableObject {
         equalizer.bands[0].frequency = Float(targetFreq)
     }
 }
+
