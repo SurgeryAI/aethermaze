@@ -104,12 +104,10 @@ final class MazeGenerator {
                     let material = PhysicsMaterialResource.generate(
                         staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
 
+                    // FIXED: PhysicsBodyComponent does NOT take shapes directly in this overload.
+                    // It uses the CollisionComponent's shapes.
                     tile.components.set(
                         PhysicsBodyComponent(
-                            shapes: [
-                                ShapeResource.generateBox(
-                                    width: unitSize, height: 0.1, depth: unitSize)
-                            ],
                             massProperties: .default,
                             material: material,
                             mode: .kinematic))
@@ -126,19 +124,59 @@ final class MazeGenerator {
                         let tile = ModelEntity(mesh: holeMesh, materials: [holeMaterial])
                         tile.position = position
 
-                        // Generate Static Mesh Shape for the hole (Concave)
-                        let shape = ShapeResource.generateStaticMesh(from: holeMesh)
+                        // FIXED: Use Composed Physics Shapes (4 Boxes) instead of async generateStaticMesh
+                        // This is synchronous and robust.
+                        // Frame around the hole (Size 1.0, Hole ~0.8)
+                        // Left, Right, Top, Bottom strips.
+                        // Hole Radius 0.4 -> Gap 0.8. Border 0.1 on each side.
 
-                        let material = PhysicsMaterialResource.generate(
+                        let sideWidth: Float = (unitSize - 0.8) / 2.0  // ~0.1
+                        let fullLength: Float = unitSize
+                        let innerLength: Float = unitSize - (sideWidth * 2)  // 0.8
+                        let height: Float = 0.1
+
+                        // Left Strip
+                        let leftPos = SIMD3<Float>(-(unitSize / 2) + (sideWidth / 2), 0, 0)
+
+                        // Right Strip
+                        let rightPos = SIMD3<Float>((unitSize / 2) - (sideWidth / 2), 0, 0)
+
+                        // Top Strip (bridging the middle) - Along Z
+                        let topPos = SIMD3<Float>(0, 0, -(unitSize / 2) + (sideWidth / 2))
+
+                        // Bottom Strip
+                        let botPos = SIMD3<Float>(0, 0, (unitSize / 2) - (sideWidth / 2))
+
+                        // Combine with Offsets?
+                        // CollisionComponent takes [ShapeResource]. BUT ShapeResource.generateBox creates centered shapes.
+                        // We need `ShapeResource.offset(...)`? No, RealityKit Shapes are local.
+                        // We actually need separate ENTITIES to offset the shapes?
+                        // OR we can use `.generateBox(size: ...).offset(...)` if available? No.
+                        // We can only supply a list of shapes, but we can't offset them easily inside one component unless we use Compound Shapes (which is generateStaticMesh or similar).
+
+                        // WORKAROUND: Create 4 invisible child entities for the physics parts.
+                        // The main 'tile' entity holds the Visual Mesh (Ghost) and NO Physics itself?
+                        // OR we attach the physics to children.
+
+                        // Let's create 4 child collision nodes.
+                        let pMat = PhysicsMaterialResource.generate(
                             staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
 
-                        tile.components.set(
-                            PhysicsBodyComponent(
-                                shapes: [shape],
-                                massProperties: .default,
-                                material: material,
-                                mode: .kinematic))
-                        tile.components.set(CollisionComponent(shapes: [shape]))
+                        func createPart(size: SIMD3<Float>, pos: SIMD3<Float>) {
+                            let part = Entity()
+                            part.position = pos
+                            part.components.set(
+                                CollisionComponent(shapes: [.generateBox(size: size)]))
+                            part.components.set(
+                                PhysicsBodyComponent(
+                                    massProperties: .default, material: pMat, mode: .kinematic))
+                            tile.addChild(part)
+                        }
+
+                        createPart(size: [sideWidth, height, fullLength], pos: leftPos)
+                        createPart(size: [sideWidth, height, fullLength], pos: rightPos)
+                        createPart(size: [innerLength, height, sideWidth], pos: topPos)
+                        createPart(size: [innerLength, height, sideWidth], pos: botPos)
 
                         parent.addChild(tile)
                     }
@@ -399,7 +437,7 @@ final class MazeGenerator {
 
     private func wallPhysicsComponent() -> PhysicsBodyComponent {
         var physics = PhysicsBodyComponent(massProperties: .default, mode: .kinematic)
-        physics.material = .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.1)
+        physics.material = .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
         return physics
     }
 
@@ -407,7 +445,7 @@ final class MazeGenerator {
         // Visual marker for the start (Blue Pad on Floor)
         // Cylinder height 0.01, radius 0.3
         let markerMesh = MeshResource.generateBox(width: 0.6, height: 0.01, depth: 0.6)
-        var markerMat = SimpleMaterial(color: .blue, isMetallic: false)
+        let markerMat = SimpleMaterial(color: .blue, isMetallic: false)
         // Make it slightly transparent?
         // markerMat.baseColor = MaterialColorParameter.color(UIColor.blue.withAlphaComponent(0.5))
         // SimpleMaterial doesn't support alpha well in non-PBR. Use PBR if needed.
