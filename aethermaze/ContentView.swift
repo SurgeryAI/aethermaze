@@ -156,13 +156,19 @@ struct ARViewContainer: UIViewRepresentable {
         let camHeight = max(8.0, levelSize * 1.2)
         let camDist = max(8.0, levelSize * 1.2)
 
+        // Attach Camera to GameAnchor so it moves WITH the board tilt.
+        // This makes the board look stationary on screen, but Gravity (World) will change relative to it.
+        gameAnchor.addChild(camera)
+
         camera.look(
-            at: [levelSize / 2, 0.0, levelSize / 2], from: [levelSize / 2, camHeight, camDist],
+            at: [levelSize / 2.0, 0.0, levelSize / 2.0],
+            from: [levelSize / 2.0, camHeight, camDist],
             relativeTo: gameAnchor)
 
-        let cameraAnchor = AnchorEntity(world: [0, 0, 0])
-        cameraAnchor.addChild(camera)
-        arView.scene.addAnchor(cameraAnchor)
+        // Remove separate cameraAnchor
+        // let cameraAnchor = AnchorEntity(world: [0, 0, 0])
+        // cameraAnchor.addChild(camera)
+        // arView.scene.addAnchor(cameraAnchor)
     }
 
     // Custom Coordinator to handle Physics Events
