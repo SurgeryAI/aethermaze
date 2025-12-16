@@ -530,9 +530,14 @@ final class MazeGenerator {
     }
 
     private func create3DWalls(parent: Entity) {
+<<<<<<< HEAD
         // Increased height by 25%: 0.5 * 1.25 = 0.625
         let wallHeight: Float = 0.625
         let wallMesh = MeshResource.generateBox(width: unitSize, height: wallHeight, depth: 0.05)
+=======
+        // Increased height to 0.5 (was 0.2) to prevent jumping
+        let wallMesh = MeshResource.generateBox(width: unitSize, height: 0.8, depth: 0.05)
+>>>>>>> main
         let wallMaterial = SimpleMaterial(color: .gray, isMetallic: false)
 
         for (y, row) in mazeMap.enumerated() {
@@ -551,7 +556,11 @@ final class MazeGenerator {
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
+<<<<<<< HEAD
                             .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
+=======
+                            .generateBox(width: unitSize, height: 0.8, depth: 0.05)
+>>>>>>> main
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -566,7 +575,11 @@ final class MazeGenerator {
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
+<<<<<<< HEAD
                             .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
+=======
+                            .generateBox(width: unitSize, height: 0.8, depth: 0.05)
+>>>>>>> main
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -583,7 +596,11 @@ final class MazeGenerator {
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
+<<<<<<< HEAD
                             .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
+=======
+                            .generateBox(width: unitSize, height: 0.8, depth: 0.05)
+>>>>>>> main
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -596,7 +613,11 @@ final class MazeGenerator {
                     wall.components.set(wallPhysicsComponent())
                     wall.components.set(
                         CollisionComponent(shapes: [
+<<<<<<< HEAD
                             .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
+=======
+                            .generateBox(width: unitSize, height: 0.8, depth: 0.05)
+>>>>>>> main
                         ]))
                     wall.name = "Wall"
                     parent.addChild(wall)
@@ -649,7 +670,10 @@ final class MazeGenerator {
         let physicsBody = PhysicsBodyComponent(
             massProperties: .default, material: .generate(friction: 0.5, restitution: 0.0),
             mode: .dynamic)
-        marble.components.set(physicsBody)
+        var dampedBody = physicsBody
+        dampedBody.linearDamping = 0.5
+        dampedBody.angularDamping = 0.5
+        marble.components.set(dampedBody)
         marble.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.15)]))
 
         parent.addChild(marble)

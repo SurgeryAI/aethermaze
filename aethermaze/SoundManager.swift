@@ -63,6 +63,7 @@ class SoundManager: ObservableObject {
     func startEngine() {
         if !engine.isRunning {
             try? engine.start()
+            playerNode.volume = 0  // Start silent
             playerNode.play()
             isPlaying = true
         }
@@ -76,7 +77,17 @@ class SoundManager: ObservableObject {
         let speed = Double(velocity)
         let maxSpeed = 3.0  // Reference max speed
 
+<<<<<<< HEAD
         let threshold: Float = 0.03
+=======
+        if speed < 0.1 {
+            playerNode.volume = 0
+            return
+        }
+
+        // Volume: 0 to 1
+        let targetVolume = Float(min(speed / maxSpeed, 1.0)) * 2.0  // Boost gain slightly
+>>>>>>> main
 
         if velocity > threshold {
             let normalized = min(speed / maxSpeed, 1.0)
