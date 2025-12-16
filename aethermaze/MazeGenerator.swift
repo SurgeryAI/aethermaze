@@ -93,14 +93,14 @@ final class MazeGenerator {
 
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
-                // Explicit SIMD3<Float> to avoid inference errors
+                // Explicit SIMD3<Float>
                 let position: SIMD3<Float> = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
 
                 if !cell.hasHole {
                     let tile = ModelEntity(mesh: tileMesh, materials: [floorMaterial])
                     tile.position = position
 
-                    // Zero restitution material
+                    // Zero restitution
                     let material = PhysicsMaterialResource.generate(
                         staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
 
