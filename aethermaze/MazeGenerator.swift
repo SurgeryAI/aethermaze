@@ -48,15 +48,75 @@ final class MazeGenerator {
     // ... (generateRecursiveBacktracker, placeStartAndEnd, placeHoles remain same) ...
     // MARK: - Procedural Maze Algorithm
     private func generateRecursiveBacktracker(width: Int, height: Int) {
-        // Placeholder Logic - Just a simple open grid for now to test movement
-        // In a real app we'd use a real stack-based generator
-        for y in 0..<height {
-            for x in 0..<width {
-                // Open some random walls for testing
-                if x < width - 1 && Bool.random() { mazeMap[y][x].walls[.east] = false }
-                if y < height - 1 && Bool.random() { mazeMap[y][x].walls[.south] = false }
+        // 1. Reset Walls (All closed)
+        // Already done in init of MazeCell
+
+        // 2. Stack-based DFS
+        var stack: [(Int, Int)] = []
+        var visited = Set<String>()  // "x,y"
+
+        // Start at 0,0
+        let startX = 0
+        let startY = 0
+        stack.append((startX, startY))
+        visited.insert("\(startX),\(startY)")
+        mazeMap[startY][startX].isVisited = true
+
+        while !stack.isEmpty {
+            let current = stack.last!
+            let (cx, cy) = current
+
+            // Find unvisited neighbors
+            var neighbors: [(Direction, (Int, Int))] = []
+
+            // North
+            if cy > 0 && !mazeMap[cy - 1][cx].isVisited {
+                neighbors.append((.north, (cx, cy - 1)))
+            }
+            // South
+            if cy < height - 1 && !mazeMap[cy + 1][cx].isVisited {
+                neighbors.append((.south, (cx, cy + 1)))
+            }
+            // East
+            if cx < width - 1 && !mazeMap[cy][cx + 1].isVisited {
+                neighbors.append((.east, (cx + 1, cy)))
+            }
+            // West
+            if cx > 0 && !mazeMap[cy][cx - 1].isVisited {
+                neighbors.append((.west, (cx - 1, cy)))
+            }
+
+            if !neighbors.isEmpty {
+                // Choose random neighbor
+                let chosen = neighbors.randomElement()!
+                let (dir, (nx, ny)) = chosen
+
+                // Remove walls between current and next
+                // Note: mazeMap walls are [Direction: Bool]. removing means = false.
+
+                mazeMap[cy][cx].walls[dir] = false
+
+                // Open opposite wall of neighbor
+                switch dir {
+                case .north: mazeMap[ny][nx].walls[.south] = false
+                case .south: mazeMap[ny][nx].walls[.north] = false
+                case .east: mazeMap[ny][nx].walls[.west] = false
+                case .west: mazeMap[ny][nx].walls[.east] = false
+                }
+
+                // Mark visited and push to stack
+                mazeMap[ny][nx].isVisited = true
+                visited.insert("\(nx),\(ny)")
+                stack.append((nx, ny))
+            } else {
+                // Backtrack
+                stack.removeLast()
             }
         }
+
+        // OPTIONAL: Randomly remove a few more walls to create loops (Braid) matches
+        // Makes it less linear and frustrating if a hole blocked a non-critical path.
+        // But our Hole Protection strategy is better.
     }
 
     private func placeStartAndEnd(size: Int) {
@@ -67,12 +127,121 @@ final class MazeGenerator {
     }
 
     private func placeHoles(level: Int) {
-        let numHoles = 2 + level
-        for _ in 0..<numHoles {
-            let randomX = Int.random(in: 1..<mazeMap.count - 1)
-            let randomY = Int.random(in: 1..<mazeMap.count - 1)
-            mazeMap[randomY][randomX].hasHole = true
+        // Algorithm:
+        // 1. Solve the maze (BFS) to find the "Correct Path".
+        // 2. Collect all cells in that path.
+        // 3. Randomly select cells NOT in that set to be holes.
+
+        guard let solutionPath = solveMazeBFS(width: mazeMap.count, height: mazeMap.count) else {
+            print("Error: Maze not solvable even without holes?")
+            return
         }
+
+        let pathSet = Set(solutionPath.map { "\($0.x),\($0.y)" })
+
+        let numHoles = 2 + level
+        var holesPlaced = 0
+        var attempts = 0
+
+        while holesPlaced < numHoles && attempts < 100 {
+            attempts += 1
+            let randomX = Int.random(in: 0..<mazeMap.count)
+            let randomY = Int.random(in: 0..<mazeMap.count)
+
+            // Don't place on start or end
+            if (randomX == 0 && randomY == 0)
+                || (randomX == mazeMap.count - 1 && randomY == mazeMap.count - 1)
+            {
+                continue
+            }
+
+            // Don't place on solution path
+            if pathSet.contains("\(randomX),\(randomY)") {
+                continue
+            }
+
+            // Don't place if already hole
+            if mazeMap[randomY][randomX].hasHole {
+                continue
+            }
+
+            mazeMap[randomY][randomX].hasHole = true
+            holesPlaced += 1
+        }
+    }
+
+    // Helper BFS Solver
+    struct Point: Hashable {
+        let x: Int, y: Int
+    }
+
+    private func solveMazeBFS(width: Int, height: Int) -> [Point]? {
+        let start = Point(x: 0, y: 0)
+        let end = Point(x: width - 1, y: height - 1)
+
+        var queue: [Point] = [start]
+        var cameFrom: [Point: Point] = [:]
+        var visited = Set<Point>()
+        visited.insert(start)
+
+        while !queue.isEmpty {
+            let current = queue.removeFirst()
+
+            if current == end {
+                // Reconstruct path
+                var path: [Point] = []
+                var p = current
+                while p != start {
+                    path.append(p)
+                    p = cameFrom[p]!
+                }
+                path.append(start)
+                return path  // Reversed, but set membership doesn't care
+            }
+
+            let cx = current.x
+            let cy = current.y
+            let cell = mazeMap[cy][cx]
+
+            // Check neighbors if no wall
+            // North
+            if !cell.walls[.north]! && cy > 0 {
+                let next = Point(x: cx, y: cy - 1)
+                if !visited.contains(next) {
+                    visited.insert(next)
+                    cameFrom[next] = current
+                    queue.append(next)
+                }
+            }
+            // South
+            if !cell.walls[.south]! && cy < height - 1 {
+                let next = Point(x: cx, y: cy + 1)
+                if !visited.contains(next) {
+                    visited.insert(next)
+                    cameFrom[next] = current
+                    queue.append(next)
+                }
+            }
+            // East
+            if !cell.walls[.east]! && cx < width - 1 {
+                let next = Point(x: cx + 1, y: cy)
+                if !visited.contains(next) {
+                    visited.insert(next)
+                    cameFrom[next] = current
+                    queue.append(next)
+                }
+            }
+            // West
+            if !cell.walls[.west]! && cx > 0 {
+                let next = Point(x: cx - 1, y: cy)
+                if !visited.contains(next) {
+                    visited.insert(next)
+                    cameFrom[next] = current
+                    queue.append(next)
+                }
+            }
+        }
+        return nil
     }
 
     // MARK: - 3D Entity Creation
