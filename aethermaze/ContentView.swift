@@ -183,6 +183,7 @@ struct ARViewContainer: UIViewRepresentable {
                     || (entityB.name == "Marble" && entityA.name == "DeathPlane")
                 {
                     print("Marble fell! Restarting level...")
+                    HapticManager.shared.playFailureHaptic()  // [NEW] Haptic
                     DispatchQueue.main.async {
                         gameCoordinator.restartLevel()
                         // Force reset of physics position?
@@ -204,9 +205,17 @@ struct ARViewContainer: UIViewRepresentable {
                     || (entityB.name == "Marble" && entityA.name == "WinZone")
                 {
                     print("Level Complete!")
+                    HapticManager.shared.playSuccessHaptic()  // [NEW] Haptic
                     DispatchQueue.main.async {
                         gameCoordinator.nextLevel()
                     }
+                }
+
+                // Wall Collision
+                if (entityA.name == "Marble" && entityB.name == "Wall")
+                    || (entityB.name == "Marble" && entityA.name == "Wall")
+                {
+                    HapticManager.shared.playCollisionHaptic()
                 }
             }
         }
@@ -217,4 +226,3 @@ struct ARViewContainer: UIViewRepresentable {
 struct LevelComponent: Component {
     var level: Int
 }
-

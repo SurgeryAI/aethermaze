@@ -90,7 +90,7 @@ final class MazeGenerator {
                     tile.position = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
 
                     tile.components.set(
-                        PhysicsBodyComponent(massProperties: .default, mode: .static))
+                        PhysicsBodyComponent(massProperties: .default, mode: .kinematic))
                     tile.components.set(
                         CollisionComponent(shapes: [
                             .generateBox(width: unitSize, height: 0.1, depth: unitSize)
@@ -113,7 +113,7 @@ final class MazeGenerator {
         let collision = CollisionComponent(shapes: [shape])
         deathPlane.components.set(collision)
         // Static body so it doesn't fall, but triggers collision
-        deathPlane.components.set(PhysicsBodyComponent(massProperties: .default, mode: .static))
+        deathPlane.components.set(PhysicsBodyComponent(massProperties: .default, mode: .kinematic))
 
         parent.addChild(deathPlane)
     }
@@ -163,6 +163,7 @@ final class MazeGenerator {
                         CollisionComponent(shapes: [
                             .generateBox(width: unitSize, height: 0.2, depth: 0.05)
                         ]))
+                    wall.name = "Wall"  // [NEW] Name for collision detection
                     parent.addChild(wall)
                 }
 
@@ -175,6 +176,7 @@ final class MazeGenerator {
                         CollisionComponent(shapes: [
                             .generateBox(width: unitSize, height: 0.2, depth: 0.05)
                         ]))
+                    wall.name = "Wall"  // [NEW] Name for collision detection
                     parent.addChild(wall)
                 }
 
@@ -184,7 +186,7 @@ final class MazeGenerator {
     }
 
     private func wallPhysicsComponent() -> PhysicsBodyComponent {
-        var physics = PhysicsBodyComponent(massProperties: .default, mode: .static)
+        var physics = PhysicsBodyComponent(massProperties: .default, mode: .kinematic)
         physics.material = .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.5)
         return physics
     }
