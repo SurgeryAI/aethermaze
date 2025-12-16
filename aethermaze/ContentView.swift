@@ -106,7 +106,8 @@ struct ARViewContainer: UIViewRepresentable {
             if gameCoordinator.gameState == .playing {
                 let g = motionController.currentGravity
 
-                let multiplier: Float = 25.0
+                // Decrease divisor to INCREASE sensitivity (steeper angle for same tilt)
+                let multiplier: Float = 10.0
                 let pitch = Double(g.z / multiplier)  // Forward/Back
                 let roll = Double(g.x / multiplier)  // Left/Right
 
