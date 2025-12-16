@@ -93,29 +93,30 @@ final class MazeGenerator {
 
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
-                let position = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
+                // Explicit SIMD3<Float> to avoid inference errors
+                let position: SIMD3<Float> = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
 
                 if !cell.hasHole {
                     let tile = ModelEntity(mesh: tileMesh, materials: [floorMaterial])
                     tile.position = position
 
-                    tile.components.set(
-                        PhysicsBodyComponent(massProperties: .default, mode: .kinematic))
-                    // Zero restitution
+                    // Zero restitution material
                     let material = PhysicsMaterialResource.generate(
                         staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
+
                     tile.components.set(
                         PhysicsBodyComponent(
-                            shapes: [.generateBox(width: unitSize, height: 0.1, depth: unitSize)],
+                            shapes: [
+                                ShapeResource.generateBox(
+                                    width: unitSize, height: 0.1, depth: unitSize)
+                            ],
                             massProperties: .default,
                             material: material,
                             mode: .kinematic))
 
-                    // Collision Component needed explicitly? PhysicsBody with shapes implies collision usually,
-                    // but separate CollisionComponent is better for event detection.
                     tile.components.set(
                         CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: 0.1, depth: unitSize)
+                            ShapeResource.generateBox(width: unitSize, height: 0.1, depth: unitSize)
                         ]))
 
                     parent.addChild(tile)
@@ -124,8 +125,8 @@ final class MazeGenerator {
                     if let holeMesh = generateHoleTileMesh() {
                         let tile = ModelEntity(mesh: holeMesh, materials: [holeMaterial])
                         tile.position = position
-                        // Important: Mesh collider for physics to support the Hole
-                        // generateStaticMesh is suitable for Kinematic bodies too in this context
+
+                        // Generate Static Mesh Shape for the hole (Concave)
                         let shape = ShapeResource.generateStaticMesh(from: holeMesh)
 
                         let material = PhysicsMaterialResource.generate(
@@ -436,7 +437,7 @@ final class MazeGenerator {
         marble.position = [0.0, 0.2, 0.0]
 
         let physicsBody = PhysicsBodyComponent(
-            massProperties: .default, material: .generate(friction: 0.5, restitution: 0.1),
+            massProperties: .default, material: .generate(friction: 0.5, restitution: 0.0),
             mode: .dynamic)
         marble.components.set(physicsBody)
         marble.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.15)]))
