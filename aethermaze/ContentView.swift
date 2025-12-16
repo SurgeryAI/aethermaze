@@ -144,7 +144,7 @@ struct ARViewContainer: UIViewRepresentable {
         let mainLight = DirectionalLight()
         mainLight.light.intensity = 2000
         mainLight.light.isRealWorldProxy = true
-        mainLight.shadow?.maximumDistance = 10
+        mainLight.shadow?.shadowProjection = .automatic(maximumDistance: 10)
         mainLight.shadow?.depthBias = 1
         mainLight.look(at: [0, 0, 0], from: [0, 5, 2], relativeTo: gameAnchor)
         gameAnchor.addChild(mainLight)
@@ -217,3 +217,4 @@ struct ARViewContainer: UIViewRepresentable {
 struct LevelComponent: Component {
     var level: Int
 }
+
