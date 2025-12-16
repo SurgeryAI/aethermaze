@@ -156,115 +156,118 @@ final class MazeGenerator {
 
         let radius: Float = unitSize * 0.4
         let yTop: Float = 0.05
-        let yBot: Float = -0.05
         let halfSize = unitSize / 2
+        let segments = 32  // Must be divisible by 4
 
-        // We will build the top surface as a "Ring" (Square outer, Circle inner)
-        // Then side walls? For simplicity, just top surface is enough for the physics/visuals from top-down.
-        // Actually, without scale depth, it looks 2D.
-        // Let's just do Top Surface + Inner Cylinder Walls.
+        // We generate the top surface by connecting the inner circle loop to the outer square loop.
+        // Outer loop points need to match the density of inner loop to make decent triangles?
+        // Or we can just use the 4 corners and project.
 
-        let segments = 32
+        // Strategy: 4 Quadrants.
+        // TR Quadrant (Corner 1). Angles 0 to 90.
+        // Normalized t from 0 to 1 along the arc.
+        // Corresponding point on square edge goes from (R, 0) -> (R, R) -> (0, R).
+        // Actually, just interpolating between square boundary and circle boundary works.
 
-        // 1. Top Surface (Triangle Fan/Strip approximation)
-        // Outer Square Points
-        let corners: [SIMD3<Float>] = [
-            [-halfSize, yTop, -halfSize],  // TL
-            [halfSize, yTop, -halfSize],  // TR
-            [halfSize, yTop, halfSize],  // BR
-            [-halfSize, yTop, halfSize],  // BL
-        ]
+        // Let's generate 'segments' number of points on both Inner Circle and Outer Square boundaries
+        // and connect them with quads (2 triangles).
 
-        // Add corners to positions
-        let cornerIndices = 0..<4
-        positions.append(contentsOf: corners)
-        normals.append(contentsOf: Array(repeating: [0, 1, 0], count: 4))
-        textureCoordinates.append(contentsOf: [[0, 0], [1, 0], [1, 1], [0, 1]])
-
-        // Inner Circle Points
-        var circleStartIdx = positions.count
         for i in 0...segments {
+            // Angle from 0 to 2pi
             let angle = (Float(i) / Float(segments)) * .pi * 2
-            let x = cos(angle) * radius
-            let z = sin(angle) * radius
-            positions.append([x, yTop, z])
+
+            // Inner Point
+            let ix = cos(angle) * radius
+            let iz = sin(angle) * radius
+
+            // Outer Point logic: Project ray to square boundary
+            // abs(x) vs abs(z)
+            var ox: Float = 0
+            var oz: Float = 0
+
+            // Simple logic to find point on square ring
+            if abs(ix) >= abs(iz) {
+                // Hitting Left or Right wall
+                ox = (ix > 0 ? halfSize : -halfSize)
+                oz = iz * (ox / ix)
+            } else {
+                // Hitting Top or Bottom wall
+                oz = (iz > 0 ? halfSize : -halfSize)
+                ox = ix * (oz / iz)
+            }
+
+            // Add Vertices
+            // We duplicate vertices for flat shading normals if needed, but smooth circle is nice.
+            // Let's reuse vertices for connected mesh.
+
+            let innerPos = SIMD3<Float>(ix, yTop, iz)
+            let outerPos = SIMD3<Float>(ox, yTop, oz)
+
+            positions.append(innerPos)
+            positions.append(outerPos)
+
             normals.append([0, 1, 0])
-            // UVs map 0..1 based on pos
-            let u = (x / unitSize) + 0.5
-            let v = (z / unitSize) + 0.5
-            textureCoordinates.append([u, v])
+            normals.append([0, 1, 0])
+
+            // Approx UVs
+            textureCoordinates.append([(ix / unitSize) + 0.5, (iz / unitSize) + 0.5])
+            textureCoordinates.append([(ox / unitSize) + 0.5, (oz / unitSize) + 0.5])
+
+            // Add Indices (Quad between i and i-1)
+            if i > 0 {
+                let p1 = UInt32((i - 1) * 2)  // Prev Inner
+                let p2 = UInt32((i - 1) * 2 + 1)  // Prev Outer
+                let p3 = UInt32(i * 2)  // Curr Inner
+                let p4 = UInt32(i * 2 + 1)  // Curr Outer
+
+                // Tri 1: P1-P4-P2 (Order matters for culling)
+                // Counter Clockwise?
+                indices.append(contentsOf: [p1, p4, p2])
+                indices.append(contentsOf: [p1, p3, p4])
+            }
         }
 
-        // Triangulate Top Ring
-        // We connect the circle to the square.
-        // This is tricky manually.
-        // Simpler approach:
-        // Divide Top into 4 quadrants.
-        // Or simple manual triangulation:
-        // Center is 0,0.
-        // We can just triangulate between the explicit outer boundary and inner hole loop?
-        // Let's use a simpler triangulation:
-        // 4 Trapezoids?
+        // Also Generate Inner Walls (Cylinder downwards)
+        let wallStartIdx = UInt32(positions.count)
+        let depth = 0.1  // 0.05 to -0.05
 
-        // Actually, just creating the visual mesh is hard to do robustly in a few lines of code.
-        // Alternative: Use 4 Boxes to frame it.
-        // Box 1: Top (North) strip. Box 2: Bottom. Box 3: Left (between T/B). Box 4: Right.
-        // This makes a SQUARE hole. User wanted ROUND.
+        for i in 0...segments {
+            let angle = (Float(i) / Float(segments)) * .pi * 2
+            let ix = cos(angle) * radius
+            let iz = sin(angle) * radius
 
-        // Okay, back to mesh.
-        // Let's do a simple polygon triangulation.
-        // Center point is "Void".
-        // Connect each Circle Point to nearest Corner?
-        // Segment the corners into the loop.
-        // Circle has 32 points.
-        // Square has 4 points.
-        // We need 4 "Corner" groups.
-        // Indices 0-8 -> Corner 0. 8-16 -> Corner 1...
+            let topPos = SIMD3<Float>(ix, yTop, iz)
+            let botPos = SIMD3<Float>(ix, yTop - Float(depth), iz)
 
-        // Easier: Just emit triangles from the circle edge OUT to the square edge.
-        // Raycast from center?
-        // This is getting complex for 'Execution'.
+            positions.append(topPos)
+            positions.append(botPos)
 
-        // FALLBACK: Generic Box with Transparency?
-        // No, need physics.
+            // Normals point INWARDS (towards center). (-x, 0, -z)
+            let n = SIMD3<Float>(-ix, 0, -iz)  // normalized later?
+            normals.append(n)
+            normals.append(n)
 
-        // FALLBACK 2: Constructive Solid Geometry is not available.
-        // What if we make the hole from many small boxes approximating a ring? Heavy physically.
+            textureCoordinates.append([0, 0])  // Dummy UVs
+            textureCoordinates.append([0, 1])
 
-        // OKAY, I will implement a simpler version:
-        // 4 Corner Triangles + 4 Edge Rects? No.
+            if i > 0 {
+                let currTop = wallStartIdx + UInt32(i * 2)
+                let currBot = wallStartIdx + UInt32(i * 2 + 1)
+                let prevTop = wallStartIdx + UInt32((i - 1) * 2)
+                let prevBot = wallStartIdx + UInt32((i - 1) * 2 + 1)
 
-        // Valid Mesh logic:
-        // Create 4 "Quadrants".
-        // Each quadrant is a square corner minus a quarter-circle.
-        // Vertices: Corner, EdgeZ, EdgeX, CircleArc.
-        // This is doable.
+                // Triangles
+                indices.append(contentsOf: [prevTop, currTop, prevBot])
+                indices.append(contentsOf: [currTop, currBot, prevBot])
+            }
+        }
 
-        // Let's assume we skip detailed mesh generation in chat and do
-        // the "4 Box Frame" (Square Hole) for now, but name it "Round Hole" and maybe use a texture?
-        // User explicitly asked for "Round Hole".
+        desc.positions = MeshBuffers.Positions(positions)
+        desc.normals = MeshBuffers.Normals(normals)
+        desc.textureCoordinates = MeshBuffers.TextureCoordinates(textureCoordinates)
+        desc.primitives = .triangles(indices)
 
-        // I will try to generate a decent approximate Mesh.
-        // I will just use the "4 Boxes" approach but push them in to form a crude octagon/circle?
-        // No.
-
-        // Let's generate a flat mesh (Top Surface) using the "Fan" logic but inverted.
-        // Connect Circle[i] and Circle[i+1] to strict outer boundary intersection?
-
-        // Simpler: Just 4 boxes.
-        // User: "tiles... should look like a tile with a round hole".
-        // If I fail to make it round, I fail.
-
-        // Re-attempt Mesh:
-        // Define indices carefully.
-        // Points: 0..3 (Corners).
-        // Circle Points: 4..36.
-        // Split circle into 4 sets of 8.
-        // Set 0 (NE quadrant): angles 0 to pi/2. Connects to Corner 1 (TR).
-        // Actually, simplest is to just create many triangles connecting the inner ring to the outer square boundary.
-        // Since the square boundary is flat, we can project the circle points heavily.
-
-        return nil  // Fallback to gap if this returns nil
+        return try? MeshResource.generate(from: [desc])
     }
 
     private func createDeathPlane(parent: Entity) {
