@@ -25,22 +25,21 @@ final class MazeGenerator {
     var mazeMap: [[MazeCell]] = []
 
     // CHANGE: We now pass a generic 'Entity' as the parent
-    func buildLevel(level: Int, parent: Entity) {
-        let size = 5 + level * 2
-        mazeMap = Array(repeating: Array(repeating: MazeCell(), count: size), count: size)
+    func buildLevel(level: Int, width: Int, height: Int, parent: Entity) {
+        mazeMap = Array(repeating: Array(repeating: MazeCell(), count: width), count: height)
 
-        generateRecursiveBacktracker(width: size, height: size)
+        generateRecursiveBacktracker(width: width, height: height)
 
-        generateRecursiveBacktracker(width: size, height: size)
+        generateRecursiveBacktracker(width: width, height: height)
 
-        placeHoles(level: level)
-        placeStartAndEnd(size: size)  // Ensure start/end are always clear
+        placeHoles(level: level, width: width, height: height)
+        placeStartAndEnd(width: width, height: height)  // Ensure start/end are always clear
 
         // Pass the parent entity to these functions
         create3DFloor(parent: parent)
         create3DWalls(parent: parent)
         createStartZone(parent: parent)  // [NEW] Visual start
-        createWinZone(size: size, parent: parent)
+        createWinZone(width: width, height: height, parent: parent)
         create3DMarble(parent: parent)  // Create marble last
         createDeathPlane(parent: parent)
     }
@@ -119,20 +118,20 @@ final class MazeGenerator {
         // But our Hole Protection strategy is better.
     }
 
-    private func placeStartAndEnd(size: Int) {
-        if size > 0 {
+    private func placeStartAndEnd(width: Int, height: Int) {
+        if width > 0 && height > 0 {
             mazeMap[0][0].hasHole = false
-            mazeMap[size - 1][size - 1].hasHole = false
+            mazeMap[height - 1][width - 1].hasHole = false
         }
     }
 
-    private func placeHoles(level: Int) {
+    private func placeHoles(level: Int, width: Int, height: Int) {
         // Algorithm:
         // 1. Solve the maze (BFS) to find the "Correct Path".
         // 2. Collect all cells in that path.
         // 3. Randomly select cells NOT in that set to be holes.
 
-        guard let solutionPath = solveMazeBFS(width: mazeMap.count, height: mazeMap.count) else {
+        guard let solutionPath = solveMazeBFS(width: width, height: height) else {
             print("Error: Maze not solvable even without holes?")
             return
         }
@@ -145,12 +144,12 @@ final class MazeGenerator {
 
         while holesPlaced < numHoles && attempts < 100 {
             attempts += 1
-            let randomX = Int.random(in: 0..<mazeMap.count)
-            let randomY = Int.random(in: 0..<mazeMap.count)
+            let randomX = Int.random(in: 0..<width)
+            let randomY = Int.random(in: 0..<height)
 
             // Don't place on start or end
             if (randomX == 0 && randomY == 0)
-                || (randomX == mazeMap.count - 1 && randomY == mazeMap.count - 1)
+                || (randomX == width - 1 && randomY == height - 1)
             {
                 continue
             }
@@ -494,10 +493,10 @@ final class MazeGenerator {
         parent.addChild(deathPlane)
     }
 
-    private func createWinZone(size: Int, parent: Entity) {
+    private func createWinZone(width: Int, height: Int, parent: Entity) {
         // Trigger at the end cell
-        let endX = size - 1
-        let endY = size - 1
+        let endX = width - 1
+        let endY = height - 1
 
         let winZone = Entity()
         winZone.name = "WinZone"

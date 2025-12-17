@@ -22,6 +22,11 @@ struct ContentView: View {
                         .background(.ultraThinMaterial)
                         .cornerRadius(10)
                     Spacer()
+                    Text(timeString(from: gameCoordinator.elapsedTime))
+                        .font(.title)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(10)
                 }
 
                 Spacer()
@@ -152,8 +157,15 @@ struct ARViewContainer: UIViewRepresentable {
 
         arView.scene.addAnchor(gameAnchor)
 
+        // Calculate Rectangular Dimensions
+        // Standard Portrait Ratio ~1.5 to 1.8
+        let baseSize = 5 + gameCoordinator.currentLevel
+        let cols = baseSize
+        let rows = Int(Double(baseSize) * 1.5)  // 50% taller than wide
+
         let generator = MazeGenerator()
-        generator.buildLevel(level: gameCoordinator.currentLevel, parent: gameAnchor)
+        generator.buildLevel(
+            level: gameCoordinator.currentLevel, width: cols, height: rows, parent: gameAnchor)
 
         // Lighting
         let mainLight = DirectionalLight()
@@ -166,26 +178,28 @@ struct ARViewContainer: UIViewRepresentable {
 
         // Camera
         let camera = PerspectiveCamera()
-        let levelSize = Float(5 + gameCoordinator.currentLevel * 2)
-        // Adjust camera based on level size
-        // Increased height and distance to ensure full maze visibility including borders
+
+        // Adjust camera based on larger dimension (Height)
+        let levelWidth = Float(cols)
+        let levelHeight = Float(rows)
+        let maxDim = max(levelWidth, levelHeight)
+
         // Level size determines the base scale
-        let camHeight = max(15.0, levelSize * 2.5)  // Higher up
-        let camDist = max(5.0, levelSize * 0.8)  // Closer horizontally (steeper angle)
+        let camHeight = max(15.0, maxDim * 2.0)  // Higher up
+        let camDist = max(5.0, maxDim * 0.8)  // Closer horizontally (steeper angle)
 
         // Attach Camera to GameAnchor so it moves WITH the board tilt.
         // This makes the board look stationary on screen, but Gravity (World) will change relative to it.
         gameAnchor.addChild(camera)
 
         camera.look(
-            at: [levelSize / 2.0, 0.0, levelSize / 2.0],
-            from: [levelSize / 2.0, camHeight, camDist],
+            at: [levelWidth / 2.0, 0.0, levelHeight / 2.0],
+            from: [levelWidth / 2.0, camHeight, camDist],
             relativeTo: gameAnchor)
 
         // Remove separate cameraAnchor
         // let cameraAnchor = AnchorEntity(world: [0, 0, 0])
         // cameraAnchor.addChild(camera)
-        // arView.scene.addAnchor(cameraAnchor)
     }
 
     // Custom Coordinator to handle Physics Events
@@ -242,6 +256,13 @@ struct ARViewContainer: UIViewRepresentable {
                 }
             }
         }
+    }
+
+    // Helper formats time
+    func timeString(from timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }
 
