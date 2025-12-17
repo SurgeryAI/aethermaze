@@ -32,6 +32,9 @@ final class MazeGenerator {
 
         generateRecursiveBacktracker(width: width, height: height)
 
+        // [NEW] Complexity: Remove 10% of walls to create loops
+        removeRandomWalls(width: width, height: height, percentage: 0.10)
+
         placeHoles(level: level, width: width, height: height)
         placeStartAndEnd(width: width, height: height)  // Ensure start/end are always clear
 
@@ -125,6 +128,36 @@ final class MazeGenerator {
         }
     }
 
+    private func removeRandomWalls(width: Int, height: Int, percentage: Double) {
+        // Iterate through all internal walls and remove a percentage of them
+        // Internal Vertical Walls: (x from 0 to width-2)
+        // Internal Horizontal Walls: (y from 0 to height-2)
+
+        for y in 0..<height {
+            for x in 0..<width {
+                // Check East Wall (if not boundary)
+                if x < width - 1 {
+                    if mazeMap[y][x].walls[.east] == true {
+                        if Double.random(in: 0...1) < percentage {
+                            mazeMap[y][x].walls[.east] = false
+                            mazeMap[y][x + 1].walls[.west] = false
+                        }
+                    }
+                }
+
+                // Check South Wall (if not boundary)
+                if y < height - 1 {
+                    if mazeMap[y][x].walls[.south] == true {
+                        if Double.random(in: 0...1) < percentage {
+                            mazeMap[y][x].walls[.south] = false
+                            mazeMap[y + 1][x].walls[.north] = false
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private func placeHoles(level: Int, width: Int, height: Int) {
         // Algorithm:
         // 1. Solve the maze (BFS) to find the "Correct Path".
@@ -137,8 +170,13 @@ final class MazeGenerator {
         }
 
         let pathSet = Set(solutionPath.map { "\($0.x),\($0.y)" })
+        let totalCells = Double(width * height)
 
-        let numHoles = 2 + level
+        // [NEW] Complexity: More holes (5% of area) or at least 2+Level
+        let pctHoles = Int(totalCells * 0.05)
+        let levelHoles = 2 + level
+        let numHoles = max(levelHoles, pctHoles)
+
         var holesPlaced = 0
         var attempts = 0
 
