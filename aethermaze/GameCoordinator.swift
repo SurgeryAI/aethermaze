@@ -29,6 +29,8 @@ class GameCoordinator: ObservableObject {
     }
 
     func nextLevel() {
+        guard gameState == .playing else { return }
+
         currentLevel += 1
         gameState = .levelComplete
         stopTimer()
