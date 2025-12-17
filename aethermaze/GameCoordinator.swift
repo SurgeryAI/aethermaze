@@ -30,8 +30,8 @@ class GameCoordinator: ObservableObject {
     }
 
     func restartLevel() {
-        // [FIX] Debounce: Ignore if already respawning to prevent double counting
-        guard !isRespawning else { return }
+        // [FIX] Guard against double-death or post-gameover collisions
+        guard gameState == .playing, !isRespawning else { return }
         isRespawning = true
 
         // Logic: You USED a marble.
