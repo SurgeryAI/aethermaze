@@ -1,9 +1,9 @@
-import SwiftUI
-import Combine
 import AVFoundation
+import Combine
+import SwiftUI
 
 class SoundManager: ObservableObject {
-    
+
     static let shared = SoundManager()
 
     private var engine: AVAudioEngine!
@@ -84,7 +84,6 @@ class SoundManager: ObservableObject {
         }
 
         // Volume: 0 to 1
-        let targetVolume = Float(min(speed / maxSpeed, 1.0)) * 2.0  // Boost gain slightly
 
         if velocity > threshold {
             let normalized = min(speed / maxSpeed, 1.0)
@@ -112,4 +111,3 @@ class SoundManager: ObservableObject {
         }
     }
 }
-
