@@ -15,50 +15,34 @@ struct ContentView: View {
 
             // UI Overlay
             VStack {
-                // Top HUD
-                HStack(spacing: 20) {
-                    // Left: Level & Marbles
-                    VStack(alignment: .leading) {
-                        Text("LEVEL \(gameCoordinator.currentLevel)")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.secondary)
-                        Text("MARBLES: \(gameCoordinator.marblesUsed)")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(12)
-
-                    // Center: Score
+                // Retro Top HUD Bar
+                HStack(spacing: 15) {
                     Spacer()
-                    VStack {
-                        Text("SCORE")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.secondary)
-                        Text("\(gameCoordinator.score)")
-                            .font(.system(size: 32, weight: .heavy, design: .rounded))
-                            .foregroundColor(.primary)
+                    Group {
+                        Text("SCORE: \(String(format: "%05d", gameCoordinator.score))")
+                        Text("|")
+                            .opacity(0.5)
+                        Text("TIME: \(timeString(from: gameCoordinator.elapsedTime))")
+                        Text("|")
+                            .opacity(0.5)
+                        Text("LVL: \(String(format: "%02d", gameCoordinator.currentLevel))")
+                        Text("|")
+                            .opacity(0.5)
+                        Text("MARBLES: \(String(format: "%02d", gameCoordinator.marblesUsed))")
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(16)
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .foregroundColor(.green)
                     Spacer()
-
-                    // Right: Time
-                    Text(timeString(from: gameCoordinator.elapsedTime))
-                        .font(.system(.title3, design: .monospaced))
-                        .fontWeight(.bold)
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(12)
                 }
-                .padding(.horizontal)
-                .padding(.top, 40)  // Status bar padding
+                .padding(.vertical, 16)
+                .padding(.top, 20)  // Extra padding for notch/status bar
+                .background(Color.black.opacity(0.9))
+                .edgesIgnoringSafeArea(.top)
+
+                // Add a divider line for that extra retro feel
+                Rectangle()
+                    .frame(height: 2)
+                    .foregroundColor(.green.opacity(0.5))
 
                 Spacer()
 

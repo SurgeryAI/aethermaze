@@ -268,23 +268,32 @@ final class MazeGenerator {
                     let tile = ModelEntity(mesh: tileMesh, materials: [floorMaterial])
                     tile.position = position
 
-                    // Zero restitution
+                    // [FIX] Tunneling Prevention: Thicker Collision Floor
+                    // Create an invisible child entity for physics that extends deep downwards
+                    let physicsChild = Entity()
+                    let thickHeight: Float = 1.0
+                    // Visual Tile Center Y: -0.05 (Height 0.1). Surface at 0.0.
+                    // Sticky Physics Center Y should be such that Top is at 0.0.
+                    // CenterY = Top - (Height/2) = 0.0 - 0.5 = -0.5.
+                    // Offset from Parent (-0.05): -0.5 - (-0.05) = -0.45.
+                    physicsChild.position = [0, -0.45, 0]
+
                     let material = PhysicsMaterialResource.generate(
                         staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
 
-                    // FIXED: PhysicsBodyComponent does NOT take shapes directly in this overload.
-                    // It uses the CollisionComponent's shapes.
-                    tile.components.set(
+                    physicsChild.components.set(
                         PhysicsBodyComponent(
                             massProperties: .default,
                             material: material,
                             mode: .kinematic))
 
-                    tile.components.set(
+                    physicsChild.components.set(
                         CollisionComponent(shapes: [
-                            ShapeResource.generateBox(width: unitSize, height: 0.1, depth: unitSize)
+                            ShapeResource.generateBox(
+                                width: unitSize, height: thickHeight, depth: unitSize)
                         ]))
 
+                    tile.addChild(physicsChild)
                     parent.addChild(tile)
                 } else {
                     // [NEW] Hole Tile
@@ -507,9 +516,18 @@ final class MazeGenerator {
             width: unitSize * 0.8, height: unitSize, depth: unitSize * 0.8)
 
         // Make it a trigger (no physics response, just event)
-        // RealityKit Triggers are often just kinematic or static bodies that we listen for events on.
         let collision = CollisionComponent(shapes: [shape])
         winZone.components.set(collision)
+
+        // [FIX] WinZone Trigger needs to track inputs? No, default is fine.
+        // But let's ensure it has a body mode that supports collisions.
+        // Triggers often need to be .kinematic/static with isTrigger...
+        // RealityKit doesn't have explicit "isTrigger" property on CollisionComponent in standard API,
+        // it relies on Subscribe to CollisionEvents. And it needs a PhysicsBodyMode.
+        // Default static often works.
+        // If it was missing PhysicsBody, it might not register.
+        // Adding kinematic body just in case (though Collision-only entities can trigger events if one other body is dynamic).
+        // winZone.components.set(PhysicsBodyComponent(massProperties: .default, mode: .kinematic)) // Optional safety
 
         // Visual marker for the end (Green Pad)
         let padMesh = MeshResource.generateBox(width: 0.6, height: 0.01, depth: 0.6)
@@ -631,7 +649,11 @@ final class MazeGenerator {
         marker.position = [0, 0.01, 0]  // Just above floor limit (0 and -0.05)
         marker.name = "StartMarker"
 
-        // No collision, just visual guide
+        // No collision on the marker itself, but we need floor underneath it?
+        // Actually, StartZone is usually at 0,0 which IS a floor tile (unless hole logic removed it).
+        // MazeGenerator places Start/End at 0,0 / max,max and guarantees "No Hole".
+        // So there IS a floor tile there created by create3DFloor.
+        // We just add the visual marker on top.
         parent.addChild(marker)
     }
 
