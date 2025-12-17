@@ -289,8 +289,9 @@ final class MazeGenerator {
 
                     physicsChild.components.set(
                         CollisionComponent(shapes: [
+                            // [FIX] Overlap tiles by 5% to seal "cracks" between them
                             ShapeResource.generateBox(
-                                width: unitSize, height: thickHeight, depth: unitSize)
+                                width: unitSize * 1.05, height: thickHeight, depth: unitSize * 1.05)
                         ]))
 
                     tile.addChild(physicsChild)
@@ -551,7 +552,18 @@ final class MazeGenerator {
         // Increased height by 25%: 0.5 * 1.25 = 0.625
         let wallHeight: Float = 0.8
         let wallMesh = MeshResource.generateBox(width: unitSize, height: wallHeight, depth: 0.05)
-        let wallMaterial = SimpleMaterial(color: .gray, isMetallic: false)
+
+        // [NEW] Texturing
+        var wallMaterial = SimpleMaterial()
+        // Try to load texture (Requires "wood_texture" in Assets or Bundle)
+        if let texture = try? TextureResource.load(named: "wood_texture") {
+            wallMaterial.color = .init(tint: .white, texture: .init(texture))
+            wallMaterial.metallic = .float(0.0)
+            wallMaterial.roughness = .float(0.8)
+        } else {
+            print("Warning: wood_texture not found. Using fallback color.")
+            wallMaterial = SimpleMaterial(color: .brown, isMetallic: false)
+        }
 
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {

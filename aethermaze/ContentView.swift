@@ -28,7 +28,9 @@ struct ContentView: View {
                         Text("LVL: \(String(format: "%02d", gameCoordinator.currentLevel))")
                         Text("|")
                             .opacity(0.5)
-                        Text("MARBLES: \(String(format: "%02d", gameCoordinator.marblesUsed))")
+                        Text(
+                            "MARBLES: \(String(format: "%02d", gameCoordinator.marblesUsed)) / \(String(format: "%02d", gameCoordinator.maxMarbles))"
+                        )
                     }
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
                     .foregroundColor(.green)
@@ -47,12 +49,58 @@ struct ContentView: View {
                 Spacer()
 
                 if gameCoordinator.gameState == .gameOver {
-                    Text("GAME OVER")
-                        .font(.system(size: 50, weight: .bold))
-                        .foregroundColor(.red)
-                        .padding()
-                        .background(.black.opacity(0.7))
-                        .cornerRadius(20)
+                    VStack(spacing: 20) {
+                        Text("GAME OVER")
+                            .font(.system(size: 40, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.red)
+                            .shadow(color: .red, radius: 2)
+
+                        Text("SCORE: \(gameCoordinator.score)")
+                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+
+                        Divider()
+                            .overlay(.white)
+
+                        Text("HIGH SCORES")
+                            .font(.headline)
+                            .foregroundColor(.green)
+                            .padding(.top)
+
+                        ForEach(Array(gameCoordinator.getHighScores().enumerated()), id: \.offset) {
+                            index, score in
+                            HStack {
+                                Text("\(index + 1).")
+                                    .frame(width: 30, alignment: .leading)
+                                Spacer()
+                                Text("\(score)")
+                            }
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.green)
+                            .frame(width: 200)
+                        }
+
+                        Button {
+                            gameCoordinator.resetGame()
+                        } label: {
+                            Text("TRY AGAIN")
+                                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                .foregroundColor(.black)
+                                .padding()
+                                .frame(width: 200)
+                                .background(Color.green)
+                                .cornerRadius(12)
+                        }
+                        .padding(.top, 20)
+                    }
+                    .padding(30)
+                    .background(Color.black.opacity(0.95))
+                    .cornerRadius(20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.green, lineWidth: 2)
+                    )
+                    .transition(.scale)
                 } else if gameCoordinator.gameState == .levelComplete {
                     Text("LEVEL COMPLETE!")
                         .font(.system(size: 40, weight: .bold))
