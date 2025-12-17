@@ -657,6 +657,7 @@ final class MazeGenerator {
         var dampedBody = physicsBody
         dampedBody.linearDamping = 0.5
         dampedBody.angularDamping = 0.5
+        dampedBody.isContinuousCollisionDetectionEnabled = true
         marble.components.set(dampedBody)
         marble.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.15)]))
 
