@@ -21,6 +21,10 @@ class GameCoordinator: ObservableObject {
     @Published var elapsedTime: TimeInterval = 0
     private var timer: AnyCancellable?
 
+    init() {
+        startTimer()
+    }
+
     func restartLevel() {
         // In a real app, we might subtract score or lives here
         // For simplicity, we just toggle 'playing' to reset positions in the view
