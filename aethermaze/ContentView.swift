@@ -28,7 +28,9 @@ struct ContentView: View {
                         Text("LVL: \(String(format: "%02d", gameCoordinator.currentLevel))")
                         Text("|")
                             .opacity(0.5)
-                        Text("MARBLES: \(String(format: "%02d", gameCoordinator.marblesUsed))")
+                        Text(
+                            "MARBLES: \(String(format: "%02d", gameCoordinator.marblesUsed)) / \(String(format: "%02d", gameCoordinator.maxMarbles))"
+                        )
                     }
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
                     .foregroundColor(.green)
