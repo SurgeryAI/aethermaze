@@ -289,8 +289,9 @@ final class MazeGenerator {
 
                     physicsChild.components.set(
                         CollisionComponent(shapes: [
+                            // [FIX] Overlap tiles by 5% to seal "cracks" between them
                             ShapeResource.generateBox(
-                                width: unitSize, height: thickHeight, depth: unitSize)
+                                width: unitSize * 1.05, height: thickHeight, depth: unitSize * 1.05)
                         ]))
 
                     tile.addChild(physicsChild)

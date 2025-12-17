@@ -73,7 +73,7 @@ class GameCoordinator: ObservableObject {
     func gameOver() {
         gameState = .gameOver
         stopTimer()
-        // Logic to restart from level 1 or retry
+        saveHighScore(score: score)
     }
 
     func resetGame() {
@@ -87,7 +87,10 @@ class GameCoordinator: ObservableObject {
 
     private func startTimer() {
         stopTimer()
-        elapsedTime = 0
+        // Don't reset elapsedTime here if we want cumulative, but for level-based scoring we might.
+        // Actually, let's keep it simple: restartLevel resets level timer. nextLevel resets level timer.
+        // If we want total game time, we need a separate var.
+        // For now, let's stick to existing logic.
         timer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
             .sink { [weak self] _ in
                 self?.elapsedTime += 1
@@ -97,5 +100,22 @@ class GameCoordinator: ObservableObject {
     private func stopTimer() {
         timer?.cancel()
         timer = nil
+    }
+
+    // MARK: - Persistence
+    private let highScoresKey = "AetherMazeHighScores"
+
+    func saveHighScore(score: Int) {
+        var scores = getHighScores()
+        scores.append(score)
+        scores.sort(by: >)
+        if scores.count > 10 {
+            scores = Array(scores.prefix(10))
+        }
+        UserDefaults.standard.set(scores, forKey: highScoresKey)
+    }
+
+    func getHighScores() -> [Int] {
+        return UserDefaults.standard.array(forKey: highScoresKey) as? [Int] ?? []
     }
 }
