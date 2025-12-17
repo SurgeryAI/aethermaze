@@ -15,19 +15,50 @@ struct ContentView: View {
 
             // UI Overlay
             VStack {
-                HStack {
-                    Text("Level \(gameCoordinator.currentLevel)")
-                        .font(.largeTitle)
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .cornerRadius(10)
+                // Top HUD
+                HStack(spacing: 20) {
+                    // Left: Level & Marbles
+                    VStack(alignment: .leading) {
+                        Text("LEVEL \(gameCoordinator.currentLevel)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.secondary)
+                        Text("MARBLES: \(gameCoordinator.marblesUsed)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(12)
+
+                    // Center: Score
                     Spacer()
+                    VStack {
+                        Text("SCORE")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.secondary)
+                        Text("\(gameCoordinator.score)")
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(16)
+                    Spacer()
+
+                    // Right: Time
                     Text(timeString(from: gameCoordinator.elapsedTime))
-                        .font(.title)
+                        .font(.system(.title3, design: .monospaced))
+                        .fontWeight(.bold)
                         .padding()
                         .background(.ultraThinMaterial)
-                        .cornerRadius(10)
+                        .cornerRadius(12)
                 }
+                .padding(.horizontal)
+                .padding(.top, 40)  // Status bar padding
 
                 Spacer()
 
@@ -193,8 +224,8 @@ struct ARViewContainer: UIViewRepresentable {
         gameAnchor.addChild(camera)
 
         camera.look(
-            at: [levelWidth / 2.0, 0.0, levelHeight / 2.0],
-            from: [levelWidth / 2.0, camHeight, camDist],
+            at: [Float(levelWidth) / 2.0, 0.0, Float(levelHeight) / 2.0],
+            from: [Float(levelWidth) / 2.0, Float(camHeight), Float(camDist)],
             relativeTo: gameAnchor)
 
         // Remove separate cameraAnchor
