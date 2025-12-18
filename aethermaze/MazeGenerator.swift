@@ -183,7 +183,7 @@ final class MazeGenerator {
                     let pos: SIMD3<Float> = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
                     shapes.append(
                         ShapeResource.generateBox(
-                            width: unitSize * 1.02, height: 1.0, depth: unitSize * 1.02
+                            width: unitSize, height: 1.0, depth: unitSize
                         ).offsetBy(translation: pos + [0, -0.45, 0]))
                 }
             }
@@ -206,16 +206,16 @@ final class MazeGenerator {
                         let holeTile = ModelEntity(mesh: holeMesh, materials: [holeMaterial])
                         holeTile.position = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
                         let sideW = (unitSize - 0.8) / 2.0
-                        let h: Float = 0.1
+                        let h: Float = 0.5  // Thicker floor for stability
                         let hs = [
                             ShapeResource.generateBox(size: [sideW, h, unitSize]).offsetBy(
-                                translation: [-(unitSize / 2) + (sideW / 2), 0, 0]),
+                                translation: [-(unitSize / 2) + (sideW / 2), -0.2, 0]),
                             ShapeResource.generateBox(size: [sideW, h, unitSize]).offsetBy(
-                                translation: [(unitSize / 2) - (sideW / 2), 0, 0]),
+                                translation: [(unitSize / 2) - (sideW / 2), -0.2, 0]),
                             ShapeResource.generateBox(size: [unitSize - sideW * 2, h, sideW])
-                                .offsetBy(translation: [0, 0, -(unitSize / 2) + (sideW / 2)]),
+                                .offsetBy(translation: [0, -0.2, -(unitSize / 2) + (sideW / 2)]),
                             ShapeResource.generateBox(size: [unitSize - sideW * 2, h, sideW])
-                                .offsetBy(translation: [0, 0, (unitSize / 2) - (sideW / 2)]),
+                                .offsetBy(translation: [0, -0.2, (unitSize / 2) - (sideW / 2)]),
                         ]
                         holeTile.components.set(CollisionComponent(shapes: hs))
                         holeTile.components.set(
@@ -266,45 +266,55 @@ final class MazeGenerator {
     private func createRefinedWalls(parent: Entity) {
         let wallH: Float = 0.8
         let wallT: Float = 0.15
-        var wallData: [(Transform, SIMD3<Float>)] = []
+        var meshData: [(Transform, SIMD3<Float>)] = []
+        var collisionData: [(Transform, SIMD3<Float>)] = []
+
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
-                let basePos = SIMD3<Float>(Float(x) * unitSize, wallH / 2, Float(y) * unitSize)
-                // Shimmer fix: Slightly offset height of intersecting walls to avoid Z-fighting
+                let basePos = SIMD3<Float>(
+                    Float(x) * unitSize, wallH / 2 - 0.01, Float(y) * unitSize)
+                // Shimmer fix: Visually offset height of intersecting walls, BUT keep collisions exact
                 let shimmerOffset: Float = 0.005
+
+                func addWall(t: Transform, isVertical: Bool) {
+                    var visualT = t
+                    visualT.translation.y += (isVertical ? -shimmerOffset : shimmerOffset)
+                    meshData.append((visualT, [unitSize + wallT, wallH, wallT]))
+
+                    // Collision shape is perfectly aligned with floor level
+                    var collT = t
+                    collT.translation.y = wallH / 2
+                    collisionData.append((collT, [unitSize + wallT, wallH, wallT]))
+                }
 
                 if cell.walls[.east] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    // Vertical wall (shimmerOffset subtracted)
-                    t.translation = basePos + [unitSize / 2, -shimmerOffset, 0]
-                    wallData.append((t, [unitSize + wallT, wallH, wallT]))
+                    t.translation = basePos + [unitSize / 2, 0, 0]
+                    addWall(t: t, isVertical: true)
                 }
                 if cell.walls[.south] == true {
                     var t = Transform()
-                    // Horizontal wall (shimmerOffset added)
-                    t.translation = basePos + [0, shimmerOffset, unitSize / 2]
-                    wallData.append((t, [unitSize + wallT, wallH, wallT]))
+                    t.translation = basePos + [0, 0, unitSize / 2]
+                    addWall(t: t, isVertical: false)
                 }
                 if y == 0 && cell.walls[.north] == true {
                     var t = Transform()
-                    // Horizontal wall
-                    t.translation = basePos + [0, shimmerOffset, -unitSize / 2]
-                    wallData.append((t, [unitSize + wallT, wallH, wallT]))
+                    t.translation = basePos + [0, 0, -unitSize / 2]
+                    addWall(t: t, isVertical: false)
                 }
                 if x == 0 && cell.walls[.west] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    // Vertical wall
-                    t.translation = basePos + [-unitSize / 2, -shimmerOffset, 0]
-                    wallData.append((t, [unitSize + wallT, wallH, wallT]))
+                    t.translation = basePos + [-unitSize / 2, 0, 0]
+                    addWall(t: t, isVertical: true)
                 }
             }
         }
-        if wallData.isEmpty { return }
+        if meshData.isEmpty { return }
         let walls = Entity()
         walls.name = "RefinedWalls"
-        if let mesh = generateWallMesh(data: wallData) {
+        if let mesh = generateWallMesh(data: meshData) {
             var mat = PhysicallyBasedMaterial()
             mat.baseColor = .init(tint: .init(red: 0.45, green: 0.35, blue: 0.25, alpha: 1.0))
             mat.roughness = 0.8
@@ -312,7 +322,7 @@ final class MazeGenerator {
             walls.addChild(ModelEntity(mesh: mesh, materials: [mat]))
         }
         var shapes: [ShapeResource] = []
-        for (t, s) in wallData {
+        for (t, s) in collisionData {
             shapes.append(
                 ShapeResource.generateBox(size: s).offsetBy(
                     rotation: t.rotation, translation: t.translation))
@@ -391,12 +401,21 @@ final class MazeGenerator {
         let wz = Entity()
         wz.name = "WinZone"
         wz.position = [Float(width - 1) * unitSize, 0, Float(height - 1) * unitSize]
-        wz.components.set(CollisionComponent(shapes: [.generateBox(size: [0.8, 1, 0.8])]))
+
+        // Use a filter to make it "Trigger Only" (it will still fire events but won't block)
+        let triggerGroup = CollisionGroup(rawValue: 1 << 31)
+        wz.components.set(
+            CollisionComponent(
+                shapes: [.generateBox(size: [0.8, 1, 0.8])],
+                filter: CollisionFilter(group: triggerGroup, mask: .all)
+            ))
+
         let pm = MeshResource.generateBox(size: [0.6, 0.01, 0.6])
         let pmt = SimpleMaterial(color: .green, isMetallic: false)
         let p = ModelEntity(mesh: pm, materials: [pmt])
         p.position = [0, 0.01, 0]
         wz.addChild(p)
+
         let mm = MeshResource.generateSphere(radius: 0.2)
         let m = ModelEntity(mesh: mm, materials: [pmt])
         m.position = [0, 0.5, 0]

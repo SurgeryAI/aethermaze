@@ -226,45 +226,42 @@ struct ARViewContainer: UIViewRepresentable {
         let generator = MazeGenerator()
         generator.buildLevel(
             level: gameCoordinator.currentLevel, width: cols, height: rows, parent: gameAnchor)
+        // Calculate dimensions
+        let levelWidth = Float(cols)
+        let levelHeight = Float(rows)
+        let maxDim = max(levelWidth, levelHeight)
+        let centerX: Float = (levelWidth - 1.0) / 2.0
+        let centerZ: Float = (levelHeight - 1.0) / 2.0
 
-        // Lighting
+        // Lighting centered on the maze for optimal shadow distribution
         let mainLight = DirectionalLight()
-        mainLight.light.intensity = 3000  // Increased intensity
-        mainLight.light.isRealWorldProxy = true
-        mainLight.shadow?.shadowProjection = .automatic(maximumDistance: 8)
-        mainLight.shadow?.depthBias = 2.0  // Increased to prevent shadow acne and flicker
-        mainLight.look(at: [0, 0, 0], from: [0, 5, 2], relativeTo: gameAnchor)
+        mainLight.look(
+            at: [centerX, 0.0, centerZ], from: [centerX, 15.0, centerZ + 10.0],
+            relativeTo: gameAnchor)
+        mainLight.light.intensity = 4000
+        mainLight.light.isRealWorldProxy = false  // Not needed for non-AR
+        mainLight.shadow?.shadowProjection = .automatic(maximumDistance: Float(maxDim) * 2.0)
+        mainLight.shadow?.depthBias = 0.4  // Much lower bias for sharper, accurate shadows
         gameAnchor.addChild(mainLight)
 
-        // [NEW] Fill Light to reduce harsh shadows
+        // Fill Light from opposite-ish side
         let fillLight = DirectionalLight()
-        fillLight.light.intensity = 800
-        // Point from the opposite-ish side
-        fillLight.look(at: [0, 0, 0], from: [0, -5, 2], relativeTo: gameAnchor)
+        fillLight.look(
+            at: [centerX, 0.0, centerZ], from: [centerX, -5.0, centerZ - 5.0],
+            relativeTo: gameAnchor)
+        fillLight.light.intensity = 1500
         gameAnchor.addChild(fillLight)
 
         // Camera
         let camera = PerspectiveCamera()
+        let camHeight = max(15.0, maxDim * 2.5)
+        let camDist = max(5.0, maxDim * 1.0)
 
-        // Adjust camera based on larger dimension (Height)
-        let levelWidth = Float(cols)
-        let levelHeight = Float(rows)
-        let maxDim = max(levelWidth, levelHeight)
-
-        // Level size determines the base scale
-        let camHeight = max(15.0, maxDim * 2.0)  // Higher up
-        let camDist = max(5.0, maxDim * 0.8)  // Closer horizontally (steeper angle)
-
-        // Attach Camera to GameAnchor so it moves WITH the board tilt.
-        // This makes the board look stationary on screen, but Gravity (World) will change relative to it.
         gameAnchor.addChild(camera)
-
         camera.look(
-            at: [Float(levelWidth) / 2.0, 0.0, Float(levelHeight) / 2.0],
-            from: [Float(levelWidth) / 2.0, Float(camHeight), Float(camDist)],
+            at: [centerX, -0.5, centerZ],
+            from: [centerX, camHeight, centerZ + camDist],
             relativeTo: gameAnchor)
-
-        // Remove separate cameraAnchor
         // let cameraAnchor = AnchorEntity(world: [0, 0, 0])
         // cameraAnchor.addChild(camera)
     }
@@ -309,8 +306,14 @@ struct ARViewContainer: UIViewRepresentable {
                     || (entityB.name == "Marble" && entityA.name == "WinZone")
                 {
                     print("Level Complete!")
-                    HapticManager.shared.playSuccessHaptic()  // [NEW] Haptic
-                    DispatchQueue.main.async {
+                    HapticManager.shared.playSuccessHaptic()
+
+                    if let marble = (entityA.name == "Marble" ? entityA : entityB) as? ModelEntity {
+                        // Playful Jump
+                        marble.applyImpulse([0, 1.5, 0], at: [0, 0, 0], relativeTo: nil)
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                         gameCoordinator.nextLevel()
                     }
                 }
