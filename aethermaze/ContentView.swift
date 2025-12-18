@@ -1,4 +1,4 @@
-import ARKit  // ✅ FIXED: Added ARKit import
+import ARKit
 import Combine
 import RealityKit
 import SwiftUI
@@ -238,10 +238,10 @@ struct ARViewContainer: UIViewRepresentable {
         mainLight.look(
             at: [centerX, 0.0, centerZ], from: [centerX, 15.0, centerZ + 10.0],
             relativeTo: gameAnchor)
-        mainLight.light.intensity = 4000
-        mainLight.light.isRealWorldProxy = false  // Not needed for non-AR
+        mainLight.light.intensity = 3500  // Reduced for less contrast
+        mainLight.light.isRealWorldProxy = false
         mainLight.shadow?.shadowProjection = .automatic(maximumDistance: Float(maxDim) * 2.0)
-        mainLight.shadow?.depthBias = 0.4  // Much lower bias for sharper, accurate shadows
+        mainLight.shadow?.depthBias = 0.5  // Softer shadows
         gameAnchor.addChild(mainLight)
 
         // Fill Light from above-ish side for wall visibility
@@ -249,8 +249,16 @@ struct ARViewContainer: UIViewRepresentable {
         fillLight.look(
             at: [centerX, 0.0, centerZ], from: [centerX, 8.0, centerZ - 8.0],
             relativeTo: gameAnchor)
-        fillLight.light.intensity = 2000
+        fillLight.light.intensity = 1800
         gameAnchor.addChild(fillLight)
+
+        // Front Fill Light to soften shadows further (Replaces AmbientLight which is not in RealityKit)
+        let frontFill = DirectionalLight()
+        frontFill.look(
+            at: [centerX, 0.0, centerZ], from: [centerX, 5.0, centerZ + 15.0],
+            relativeTo: gameAnchor)
+        frontFill.light.intensity = 1000
+        gameAnchor.addChild(frontFill)
 
         // Camera framing to maximize screen real estate
         let camera = PerspectiveCamera()

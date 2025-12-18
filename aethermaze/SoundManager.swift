@@ -12,7 +12,20 @@ class SoundManager: ObservableObject {
     private var isPlaying = false
 
     init() {
+        configureAudioSession()
         setupAudioEngine()
+    }
+
+    private func configureAudioSession() {
+        #if os(iOS)
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.ambient, mode: .default)
+                try session.setActive(true)
+            } catch {
+                print("Failed to configure audio session: \(error)")
+            }
+        #endif
     }
 
     private func setupAudioEngine() {
@@ -99,7 +112,7 @@ class SoundManager: ObservableObject {
 
         // Volume logic: subtle rumble
         let normalized = min(speed / maxSpeed, 1.0)
-        let targetVolume = Float(normalized * 0.5)  // Max 50% gain for subtlety
+        let targetVolume = Float(normalized * 1.2)  // Boosted from 0.5 to 1.2 so it's actually audible
 
         // Frequency scaling
         let minFreq = 100.0

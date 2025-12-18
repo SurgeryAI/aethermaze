@@ -280,7 +280,7 @@ final class MazeGenerator {
 
     private func createRefinedWalls(parent: Entity) {
         let wallH: Float = 0.8
-        let wallT: Float = 0.40  // Substantial premium thickness
+        let wallT: Float = 0.32  // Refined thickness (20% thinner than 0.4)
         var meshData: [(Transform, SIMD3<Float>)] = []
         var collisionData: [(Transform, SIMD3<Float>)] = []
 
