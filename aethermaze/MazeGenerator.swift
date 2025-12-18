@@ -270,26 +270,33 @@ final class MazeGenerator {
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
                 let basePos = SIMD3<Float>(Float(x) * unitSize, wallH / 2, Float(y) * unitSize)
+                // Shimmer fix: Slightly offset height of intersecting walls to avoid Z-fighting
+                let shimmerOffset: Float = 0.005
+
                 if cell.walls[.east] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    t.translation = basePos + [unitSize / 2, 0, 0]
+                    // Vertical wall (shimmerOffset subtracted)
+                    t.translation = basePos + [unitSize / 2, -shimmerOffset, 0]
                     wallData.append((t, [unitSize + wallT, wallH, wallT]))
                 }
                 if cell.walls[.south] == true {
                     var t = Transform()
-                    t.translation = basePos + [0, 0, unitSize / 2]
+                    // Horizontal wall (shimmerOffset added)
+                    t.translation = basePos + [0, shimmerOffset, unitSize / 2]
                     wallData.append((t, [unitSize + wallT, wallH, wallT]))
                 }
                 if y == 0 && cell.walls[.north] == true {
                     var t = Transform()
-                    t.translation = basePos + [0, 0, -unitSize / 2]
+                    // Horizontal wall
+                    t.translation = basePos + [0, shimmerOffset, -unitSize / 2]
                     wallData.append((t, [unitSize + wallT, wallH, wallT]))
                 }
                 if x == 0 && cell.walls[.west] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    t.translation = basePos + [-unitSize / 2, 0, 0]
+                    // Vertical wall
+                    t.translation = basePos + [-unitSize / 2, -shimmerOffset, 0]
                     wallData.append((t, [unitSize + wallT, wallH, wallT]))
                 }
             }

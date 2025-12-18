@@ -51,12 +51,20 @@ final class MotionController: ObservableObject {
             let roll = data.attitude.roll  // Tilt Left/Right
             let pitch = data.attitude.pitch  // Tilt Forward/Backward
 
+            // Smoothing Factor (0.0 to 1.0) - Lower = Smoother but laggier
+            // 0.2 is usually a good balance for controls
+            let alpha: Float = 0.2
+
             // Update the published gravity vector on the main thread
             DispatchQueue.main.async {
+                let targetX = Float(sin(roll)) * self.tiltMultiplier
+                let targetZ = Float(sin(pitch)) * self.tiltMultiplier
+
+                // Exponential Moving Average: Current = (1-alpha)*Previous + alpha*Target
                 self.currentGravity = GravityVector(
-                    x: Float(sin(roll)) * self.tiltMultiplier,
-                    y: -9.8,  // Constant downward force
-                    z: Float(sin(pitch)) * self.tiltMultiplier
+                    x: (1.0 - alpha) * self.currentGravity.x + alpha * targetX,
+                    y: -9.8,
+                    z: (1.0 - alpha) * self.currentGravity.z + alpha * targetZ
                 )
             }
         }

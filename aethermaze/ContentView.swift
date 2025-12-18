@@ -231,8 +231,8 @@ struct ARViewContainer: UIViewRepresentable {
         let mainLight = DirectionalLight()
         mainLight.light.intensity = 3000  // Increased intensity
         mainLight.light.isRealWorldProxy = true
-        mainLight.shadow?.shadowProjection = .automatic(maximumDistance: 10)
-        mainLight.shadow?.depthBias = 1
+        mainLight.shadow?.shadowProjection = .automatic(maximumDistance: 8)
+        mainLight.shadow?.depthBias = 2.0  // Increased to prevent shadow acne and flicker
         mainLight.look(at: [0, 0, 0], from: [0, 5, 2], relativeTo: gameAnchor)
         gameAnchor.addChild(mainLight)
 
