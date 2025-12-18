@@ -280,7 +280,7 @@ final class MazeGenerator {
 
     private func createRefinedWalls(parent: Entity) {
         let wallH: Float = 0.8
-        let wallT: Float = 0.20  // Standardized thickness
+        let wallT: Float = 0.40  // Substantial premium thickness
         var meshData: [(Transform, SIMD3<Float>)] = []
         var collisionData: [(Transform, SIMD3<Float>)] = []
 
@@ -429,7 +429,8 @@ final class MazeGenerator {
             }
             for f in 0..<6 {
                 let fo = offset + UInt32(f * 4)
-                ind.append(contentsOf: [fo, fo + 1, fo + 2, fo, fo + 2, fo + 3])
+                // Fix Winding Order (CCW: Outward facing)
+                ind.append(contentsOf: [fo, fo + 2, fo + 1, fo, fo + 3, fo + 2])
             }
         }
         desc.positions = .init(pos)

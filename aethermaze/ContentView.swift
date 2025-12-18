@@ -244,12 +244,12 @@ struct ARViewContainer: UIViewRepresentable {
         mainLight.shadow?.depthBias = 0.4  // Much lower bias for sharper, accurate shadows
         gameAnchor.addChild(mainLight)
 
-        // Fill Light from opposite-ish side
+        // Fill Light from above-ish side for wall visibility
         let fillLight = DirectionalLight()
         fillLight.look(
-            at: [centerX, 0.0, centerZ], from: [centerX, -5.0, centerZ - 5.0],
+            at: [centerX, 0.0, centerZ], from: [centerX, 8.0, centerZ - 8.0],
             relativeTo: gameAnchor)
-        fillLight.light.intensity = 1500
+        fillLight.light.intensity = 2000
         gameAnchor.addChild(fillLight)
 
         // Camera framing to maximize screen real estate
