@@ -252,16 +252,30 @@ struct ARViewContainer: UIViewRepresentable {
         fillLight.light.intensity = 1500
         gameAnchor.addChild(fillLight)
 
-        // Camera
+        // Camera framing to maximize screen real estate
         let camera = PerspectiveCamera()
-        let camHeight = max(15.0, maxDim * 2.5)
-        let camDist = max(5.0, maxDim * 1.0)
+        camera.camera.fieldOfViewInDegrees = 65  // Slightly wider for immersion
+
+        let camHeight = max(12.0, maxDim * 1.8)  // Lower camera
+        let camDist = max(0.0, maxDim * 0.1)  // More top-down
 
         gameAnchor.addChild(camera)
         camera.look(
             at: [centerX, -0.5, centerZ],
             from: [centerX, camHeight, centerZ + camDist],
             relativeTo: gameAnchor)
+
+        // Immersive Background (Stylized Atmosphere)
+        let background = Entity()
+        let bgMesh = MeshResource.generateSphere(radius: 50)
+        var bgMat = UnlitMaterial()
+        // Deep midnight blue gradient look
+        bgMat.color = .init(tint: .init(red: 0.02, green: 0.05, blue: 0.15, alpha: 1.0))
+        let bgModel = ModelEntity(mesh: bgMesh, materials: [bgMat])
+        bgModel.scale = .init(x: -1, y: 1, z: 1)  // Invert to see inside
+        background.addChild(bgModel)
+        background.position = [centerX, 0, centerZ]
+        gameAnchor.addChild(background)
         // let cameraAnchor = AnchorEntity(world: [0, 0, 0])
         // cameraAnchor.addChild(camera)
     }

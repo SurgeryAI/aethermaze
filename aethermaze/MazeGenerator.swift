@@ -171,8 +171,11 @@ final class MazeGenerator {
         floorEntity.name = "RefinedFloor"
         if let combinedMesh = generateContiguousFloorMesh(width: width, height: height) {
             var floorMaterial = PhysicallyBasedMaterial()
-            floorMaterial.baseColor = .init(tint: .brown)
-            floorMaterial.roughness = 0.8
+            // Lighter, polished wood for the floor
+            floorMaterial.baseColor = .init(
+                tint: .init(red: 0.55, green: 0.38, blue: 0.22, alpha: 1.0))
+            floorMaterial.roughness = 0.4
+            floorMaterial.metallic = 0.1
             let model = ModelEntity(mesh: combinedMesh, materials: [floorMaterial])
             floorEntity.addChild(model)
         }
@@ -198,8 +201,10 @@ final class MazeGenerator {
 
         if let holeMesh = generateHoleTileMesh() {
             var holeMaterial = PhysicallyBasedMaterial()
-            holeMaterial.baseColor = .init(tint: .brown)
-            holeMaterial.roughness = 0.8
+            holeMaterial.baseColor = .init(
+                tint: .init(red: 0.45, green: 0.3, blue: 0.15, alpha: 1.0))
+            holeMaterial.roughness = 0.6
+            holeMaterial.metallic = 0.05
             for y in 0..<height {
                 for x in 0..<width {
                     if mazeMap[y][x].hasHole {
@@ -273,41 +278,66 @@ final class MazeGenerator {
             for (x, cell) in row.enumerated() {
                 let basePos = SIMD3<Float>(
                     Float(x) * unitSize, wallH / 2 - 0.01, Float(y) * unitSize)
-                // Shimmer fix: Visually offset height of intersecting walls, BUT keep collisions exact
-                let shimmerOffset: Float = 0.005
+                let shimmerOffset: Float = 0.002
 
-                func addWall(t: Transform, isVertical: Bool) {
-                    var visualT = t
-                    visualT.translation.y += (isVertical ? -shimmerOffset : shimmerOffset)
-                    meshData.append((visualT, [unitSize + wallT, wallH, wallT]))
-
-                    // Collision shape is perfectly aligned with floor level
-                    var collT = t
-                    collT.translation.y = wallH / 2
-                    collisionData.append((collT, [unitSize + wallT, wallH, wallT]))
-                }
-
-                if cell.walls[.east] == true {
-                    var t = Transform()
-                    t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    t.translation = basePos + [unitSize / 2, 0, 0]
-                    addWall(t: t, isVertical: true)
-                }
+                // Horizontal Walls (East-West alignment)
+                // We make these slightly shorter so they butt against vertical walls
                 if cell.walls[.south] == true {
                     var t = Transform()
                     t.translation = basePos + [0, 0, unitSize / 2]
-                    addWall(t: t, isVertical: false)
+                    let size = SIMD3<Float>(unitSize - wallT, wallH, wallT)
+
+                    var visualT = t
+                    visualT.translation.y += shimmerOffset
+                    meshData.append((visualT, size))
+
+                    var collT = t
+                    collT.translation.y = wallH / 2
+                    collisionData.append((collT, size))
                 }
                 if y == 0 && cell.walls[.north] == true {
                     var t = Transform()
                     t.translation = basePos + [0, 0, -unitSize / 2]
-                    addWall(t: t, isVertical: false)
+                    let size = SIMD3<Float>(unitSize - wallT, wallH, wallT)
+
+                    var visualT = t
+                    visualT.translation.y += shimmerOffset
+                    meshData.append((visualT, size))
+
+                    var collT = t
+                    collT.translation.y = wallH / 2
+                    collisionData.append((collT, size))
+                }
+
+                // Vertical Walls (North-South alignment)
+                // These are full length + thickness to cover the corners
+                if cell.walls[.east] == true {
+                    var t = Transform()
+                    t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
+                    t.translation = basePos + [unitSize / 2, 0, 0]
+                    let size = SIMD3<Float>(unitSize + wallT, wallH, wallT)
+
+                    var visualT = t
+                    visualT.translation.y -= shimmerOffset
+                    meshData.append((visualT, size))
+
+                    var collT = t
+                    collT.translation.y = wallH / 2
+                    collisionData.append((collT, size))
                 }
                 if x == 0 && cell.walls[.west] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
                     t.translation = basePos + [-unitSize / 2, 0, 0]
-                    addWall(t: t, isVertical: true)
+                    let size = SIMD3<Float>(unitSize + wallT, wallH, wallT)
+
+                    var visualT = t
+                    visualT.translation.y -= shimmerOffset
+                    meshData.append((visualT, size))
+
+                    var collT = t
+                    collT.translation.y = wallH / 2
+                    collisionData.append((collT, size))
                 }
             }
         }
@@ -316,9 +346,10 @@ final class MazeGenerator {
         walls.name = "RefinedWalls"
         if let mesh = generateWallMesh(data: meshData) {
             var mat = PhysicallyBasedMaterial()
-            mat.baseColor = .init(tint: .init(red: 0.45, green: 0.35, blue: 0.25, alpha: 1.0))
-            mat.roughness = 0.8
-            mat.metallic = 0.1
+            // Deep, rich wood brown
+            mat.baseColor = .init(tint: .init(red: 0.35, green: 0.22, blue: 0.12, alpha: 1.0))
+            mat.roughness = 0.6
+            mat.metallic = 0.05
             walls.addChild(ModelEntity(mesh: mesh, materials: [mat]))
         }
         var shapes: [ShapeResource] = []
