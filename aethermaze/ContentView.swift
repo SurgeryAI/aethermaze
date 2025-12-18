@@ -237,11 +237,7 @@ struct ARViewContainer: UIViewRepresentable {
         gameAnchor.addChild(mainLight)
 
         // [NEW] Fill Light to reduce harsh shadows
-        let fillLight = DirectionalLight()
-        fillLight.light.intensity = 1500
-        // Point from the opposite-ish side
-        fillLight.look(at: [0, 0, 0], from: [0, -5, 2], relativeTo: gameAnchor)
-        gameAnchor.addChild(fillLight)
+        fillLight.light.intensity = 800
 
         // Camera
         let camera = PerspectiveCamera()
