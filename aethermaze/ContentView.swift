@@ -16,28 +16,24 @@ struct ContentView: View {
             // UI Overlay
             VStack {
                 // Retro Top HUD Bar
-                HStack(spacing: 15) {
-                    Spacer()
+                HStack(spacing: 0) {
                     Group {
-                        Text("SCORE: \(String(format: "%05d", gameCoordinator.score))")
-                        Text("|")
-                            .opacity(0.5)
-                        Text("TIME: \(timeString(from: gameCoordinator.elapsedTime))")
-                        Text("|")
-                            .opacity(0.5)
-                        Text("LVL: \(String(format: "%02d", gameCoordinator.currentLevel))")
-                        Text("|")
-                            .opacity(0.5)
-                        Text(
-                            "MARBLES: \(String(format: "%02d", gameCoordinator.marblesUsed)) / \(String(format: "%02d", gameCoordinator.maxMarbles))"
-                        )
+                        HUDItem(
+                            label: "SCORE", value: String(format: "%05d", gameCoordinator.score))
+                        HUDDivider()
+                        HUDItem(label: "TIME", value: timeString(from: gameCoordinator.elapsedTime))
+                        HUDDivider()
+                        HUDItem(
+                            label: "LVL",
+                            value: String(format: "%02d", gameCoordinator.currentLevel))
+                        HUDDivider()
+                        HUDItem(
+                            label: "MARBLES",
+                            value: "\(gameCoordinator.marblesUsed)/\(gameCoordinator.maxMarbles)")
                     }
-                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundColor(.green)
-                    Spacer()
                 }
-                .padding(.vertical, 16)
-                .padding(.top, 20)  // Extra padding for notch/status bar
+                .padding(.vertical, 10)
+                .padding(.horizontal, 10)
                 .background(Color.black.opacity(0.9))
                 .edgesIgnoringSafeArea(.top)
 
@@ -233,12 +229,17 @@ struct ARViewContainer: UIViewRepresentable {
 
         // Lighting
         let mainLight = DirectionalLight()
-        mainLight.light.intensity = 2000
+        mainLight.light.intensity = 3000  // Increased intensity
         mainLight.light.isRealWorldProxy = true
         mainLight.shadow?.shadowProjection = .automatic(maximumDistance: 10)
         mainLight.shadow?.depthBias = 1
         mainLight.look(at: [0, 0, 0], from: [0, 5, 2], relativeTo: gameAnchor)
         gameAnchor.addChild(mainLight)
+
+        // [NEW] Ambient Light to reduce harsh shadows
+        let ambientLight = AmbientLight()
+        ambientLight.light.intensity = 500
+        gameAnchor.addChild(ambientLight)
 
         // Camera
         let camera = PerspectiveCamera()
@@ -313,8 +314,8 @@ struct ARViewContainer: UIViewRepresentable {
                 }
 
                 // Wall Collision
-                if (entityA.name == "Marble" && entityB.name == "Wall")
-                    || (entityB.name == "Marble" && entityA.name == "Wall")
+                if (entityA.name == "RefinedWalls" && entityB.name == "Marble")
+                    || (entityB.name == "RefinedWalls" && entityA.name == "Marble")
                 {
                     HapticManager.shared.playCollisionHaptic()
                 }
@@ -328,6 +329,35 @@ func timeString(from timeInterval: TimeInterval) -> String {
     let minutes = Int(timeInterval) / 60
     let seconds = Int(timeInterval) % 60
     return String(format: "%02d:%02d", minutes, seconds)
+}
+
+// [NEW] HUD Subviews for better layout control
+struct HUDItem: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.system(size: 10, weight: .regular, design: .monospaced))
+                .opacity(0.7)
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .monospaced))
+        }
+        .foregroundColor(.green)
+        .frame(maxWidth: .infinity)
+        .minimumScaleFactor(0.5)
+        .lineLimit(1)
+    }
+}
+
+struct HUDDivider: View {
+    var body: some View {
+        Rectangle()
+            .frame(width: 1, height: 25)
+            .foregroundColor(.green.opacity(0.3))
+            .padding(.horizontal, 4)
+    }
 }
 
 // Helper Component to store level info on the Anchor
