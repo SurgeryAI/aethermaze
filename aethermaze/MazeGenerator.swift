@@ -181,13 +181,23 @@ final class MazeGenerator {
         }
         var shapes: [ShapeResource] = []
         for y in 0..<height {
-            for x in 0..<width {
+            var x = 0
+            while x < width {
                 if !mazeMap[y][x].hasHole {
-                    let pos: SIMD3<Float> = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
+                    let startX = x
+                    while x < width && !mazeMap[y][x].hasHole {
+                        x += 1
+                    }
+                    let count = Float(x - startX)
+                    // Center point of the merged span
+                    let centerX = (Float(startX) + (count - 1) / 2.0) * unitSize
+                    let pos: SIMD3<Float> = [centerX, -0.05, Float(y) * unitSize]
                     shapes.append(
                         ShapeResource.generateBox(
-                            width: unitSize, height: 1.0, depth: unitSize
+                            width: count * unitSize, height: 1.0, depth: unitSize
                         ).offsetBy(translation: pos + [0, -0.45, 0]))
+                } else {
+                    x += 1
                 }
             }
         }
@@ -200,7 +210,7 @@ final class MazeGenerator {
         floorEntity.components.set(
             PhysicsBodyComponent(
                 massProperties: .default,
-                material: .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0),
+                material: .generate(staticFriction: 0.2, dynamicFriction: 0.2, restitution: 0.0),
                 mode: .kinematic))
         parent.addChild(floorEntity)
 
@@ -236,7 +246,7 @@ final class MazeGenerator {
                         holeTile.components.set(
                             PhysicsBodyComponent(
                                 massProperties: .default,
-                                material: .generate(friction: 0.1, restitution: 0.0),
+                                material: .generate(friction: 0.2, restitution: 0.0),
                                 mode: .kinematic))
                         parent.addChild(holeTile)
                     }
@@ -289,8 +299,10 @@ final class MazeGenerator {
                 let basePos = SIMD3<Float>(
                     Float(x) * unitSize, wallH / 2 - 0.01, Float(y) * unitSize)
                 let shimmerOffset: Float = 0.002
-                // Unified size for both visual and collision
-                let exactSize = SIMD3<Float>(unitSize + wallT + 0.001, wallH, wallT)
+                // Visual size includes a tiny overlap to prevent light leaks/seams
+                let visualSize = SIMD3<Float>(unitSize + wallT + 0.001, wallH, wallT)
+                // Physics size is exact to prevent corner jitter
+                let collisionSize = SIMD3<Float>(unitSize + wallT, wallH, wallT)
 
                 // Horizontal Walls (East-West alignment)
                 if cell.walls[.south] == true {
@@ -299,11 +311,11 @@ final class MazeGenerator {
 
                     var visualT = t
                     visualT.translation.y += shimmerOffset
-                    meshData.append((visualT, exactSize))
+                    meshData.append((visualT, visualSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, exactSize))
+                    collisionData.append((collT, collisionSize))
                 }
                 if y == 0 && cell.walls[.north] == true {
                     var t = Transform()
@@ -311,26 +323,26 @@ final class MazeGenerator {
 
                     var visualT = t
                     visualT.translation.y += shimmerOffset
-                    meshData.append((visualT, exactSize))
+                    meshData.append((visualT, visualSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, exactSize))
+                    collisionData.append((collT, collisionSize))
                 }
 
                 // Vertical Walls (North-South alignment)
                 if cell.walls[.east] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    t.translation = basePos + [unitSize / 2, 0, 1e-5]  // Tiny offset for Z-fighting overlap
+                    t.translation = basePos + [unitSize / 2, 0, 1e-5]
 
                     var visualT = t
                     visualT.translation.y -= shimmerOffset
-                    meshData.append((visualT, exactSize))
+                    meshData.append((visualT, visualSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, exactSize))
+                    collisionData.append((collT, collisionSize))
                 }
                 if x == 0 && cell.walls[.west] == true {
                     var t = Transform()
@@ -339,11 +351,11 @@ final class MazeGenerator {
 
                     var visualT = t
                     visualT.translation.y -= shimmerOffset
-                    meshData.append((visualT, exactSize))
+                    meshData.append((visualT, visualSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, exactSize))
+                    collisionData.append((collT, collisionSize))
                 }
             }
         }
@@ -372,7 +384,7 @@ final class MazeGenerator {
             ))
         walls.components.set(
             PhysicsBodyComponent(
-                massProperties: .default, material: .generate(friction: 0.1, restitution: 0.0),
+                massProperties: .default, material: .generate(friction: 0.2, restitution: 0.0),
                 mode: .kinematic))
         parent.addChild(walls)
     }

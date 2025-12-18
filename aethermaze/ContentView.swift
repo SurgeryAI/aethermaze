@@ -236,7 +236,7 @@ struct ARViewContainer: UIViewRepresentable {
         // Lighting centered on the maze for optimal shadow distribution
         let mainLight = DirectionalLight()
         mainLight.look(
-            at: [centerX, 0.0, centerZ], from: [centerX, 15.0, centerZ + 10.0],
+            at: [centerX, 0.0, centerZ], from: [centerX + 5.0, 15.0, centerZ + 8.0],
             relativeTo: gameAnchor)
         mainLight.light.intensity = 3500  // Reduced for less contrast
         mainLight.light.isRealWorldProxy = false
