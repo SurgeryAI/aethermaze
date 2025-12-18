@@ -299,10 +299,9 @@ final class MazeGenerator {
         walls.name = "RefinedWalls"
         if let mesh = generateWallMesh(data: wallData) {
             var mat = PhysicallyBasedMaterial()
-            mat.baseColor = .init(tint: .init(red: 0.6, green: 0.4, blue: 0.3, alpha: 1.0))
-            mat.roughness = 0.9
-            mat.metallic = 0.0
-            mat.faceCulling = .none  // double-sided rendering
+            mat.baseColor = .init(tint: .init(red: 0.45, green: 0.35, blue: 0.25, alpha: 1.0))
+            mat.roughness = 0.8
+            mat.metallic = 0.1
             walls.addChild(ModelEntity(mesh: mesh, materials: [mat]))
         }
         var shapes: [ShapeResource] = []
@@ -409,9 +408,10 @@ final class MazeGenerator {
 
     private func create3DMarble(parent: Entity) {
         var marbleMaterial = PhysicallyBasedMaterial()
-        marbleMaterial.baseColor = .init(tint: .init(red: 0.9, green: 0.9, blue: 0.9, alpha: 1.0))
-        marbleMaterial.roughness = 0.5
-        marbleMaterial.metallic = 0.0
+        // Shiny Chrome / Silver look
+        marbleMaterial.baseColor = .init(tint: .init(white: 0.8, alpha: 1.0))
+        marbleMaterial.roughness = 0.05
+        marbleMaterial.metallic = 1.0
         let m = ModelEntity(
             mesh: .generateSphere(radius: 0.15), materials: [marbleMaterial])
         m.name = "Marble"
