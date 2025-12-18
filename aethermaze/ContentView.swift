@@ -265,17 +265,38 @@ struct ARViewContainer: UIViewRepresentable {
             from: [centerX, camHeight, centerZ + camDist],
             relativeTo: gameAnchor)
 
-        // Immersive Background (Stylized Atmosphere)
-        let background = Entity()
-        let bgMesh = MeshResource.generateSphere(radius: 50)
+        // Immersive Background (Atmospheric Nebula + Starfield)
+        let backgroundRoot = Entity()
+        backgroundRoot.name = "BackgroundSystem"
+
+        // 1. Nebula Sphere
+        let bgMesh = MeshResource.generateSphere(radius: 60)
         var bgMat = UnlitMaterial()
-        // Deep midnight blue gradient look
-        bgMat.color = .init(tint: .init(red: 0.02, green: 0.05, blue: 0.15, alpha: 1.0))
+        bgMat.color = .init(tint: .init(red: 0.05, green: 0.1, blue: 0.3, alpha: 1.0))  // Brighter/More Blue
         let bgModel = ModelEntity(mesh: bgMesh, materials: [bgMat])
-        bgModel.scale = .init(x: -1, y: 1, z: 1)  // Invert to see inside
-        background.addChild(bgModel)
-        background.position = [centerX, 0, centerZ]
-        gameAnchor.addChild(background)
+        bgModel.scale = .init(x: -1, y: 1, z: 1)  // Invert
+        backgroundRoot.addChild(bgModel)
+
+        // 2. Simple Starfield (Sparse Points)
+        for _ in 0..<100 {
+            let star = ModelEntity(
+                mesh: .generateSphere(radius: 0.1),
+                materials: [UnlitMaterial(color: .white)]
+            )
+            // Random position in a large shell
+            let theta = Float.random(in: 0...(.pi * 2))
+            let phi = Float.random(in: 0...(.pi))
+            let r: Float = 55.0
+            star.position = [
+                r * sin(phi) * cos(theta),
+                r * sin(phi) * sin(theta),
+                r * cos(phi),
+            ]
+            backgroundRoot.addChild(star)
+        }
+
+        backgroundRoot.position = [centerX, 0, centerZ]
+        gameAnchor.addChild(backgroundRoot)
         // let cameraAnchor = AnchorEntity(world: [0, 0, 0])
         // cameraAnchor.addChild(camera)
     }

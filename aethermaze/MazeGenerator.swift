@@ -279,65 +279,60 @@ final class MazeGenerator {
                 let basePos = SIMD3<Float>(
                     Float(x) * unitSize, wallH / 2 - 0.01, Float(y) * unitSize)
                 let shimmerOffset: Float = 0.002
+                let fullSize = SIMD3<Float>(unitSize + wallT + 0.01, wallH, wallT)  // 1cm extra for overlap safety
 
                 // Horizontal Walls (East-West alignment)
-                // We make these slightly shorter so they butt against vertical walls
                 if cell.walls[.south] == true {
                     var t = Transform()
                     t.translation = basePos + [0, 0, unitSize / 2]
-                    let size = SIMD3<Float>(unitSize - wallT, wallH, wallT)
 
                     var visualT = t
                     visualT.translation.y += shimmerOffset
-                    meshData.append((visualT, size))
+                    meshData.append((visualT, fullSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, size))
+                    collisionData.append((collT, fullSize))
                 }
                 if y == 0 && cell.walls[.north] == true {
                     var t = Transform()
                     t.translation = basePos + [0, 0, -unitSize / 2]
-                    let size = SIMD3<Float>(unitSize - wallT, wallH, wallT)
 
                     var visualT = t
                     visualT.translation.y += shimmerOffset
-                    meshData.append((visualT, size))
+                    meshData.append((visualT, fullSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, size))
+                    collisionData.append((collT, fullSize))
                 }
 
                 // Vertical Walls (North-South alignment)
-                // These are full length + thickness to cover the corners
                 if cell.walls[.east] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
                     t.translation = basePos + [unitSize / 2, 0, 0]
-                    let size = SIMD3<Float>(unitSize + wallT, wallH, wallT)
 
                     var visualT = t
                     visualT.translation.y -= shimmerOffset
-                    meshData.append((visualT, size))
+                    meshData.append((visualT, fullSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, size))
+                    collisionData.append((collT, fullSize))
                 }
                 if x == 0 && cell.walls[.west] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
                     t.translation = basePos + [-unitSize / 2, 0, 0]
-                    let size = SIMD3<Float>(unitSize + wallT, wallH, wallT)
 
                     var visualT = t
                     visualT.translation.y -= shimmerOffset
-                    meshData.append((visualT, size))
+                    meshData.append((visualT, fullSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, size))
+                    collisionData.append((collT, fullSize))
                 }
             }
         }

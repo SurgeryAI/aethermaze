@@ -63,7 +63,7 @@ class SoundManager: ObservableObject {
                 // Subtle high-pass filter to prevent DC offset build-up
                 brown *= 0.99
 
-                data[i] = brown * 0.3  // Volume adjustment
+                data[i] = brown * 0.8  // Increased base volume for better visibility
                 lastValue = brown
             }
         }
@@ -72,52 +72,46 @@ class SoundManager: ObservableObject {
 
     func startEngine() {
         if !engine.isRunning {
-            try? engine.start()
-            playerNode.volume = 0  // Start silent
-            playerNode.play()
-            isPlaying = true
+            do {
+                try engine.start()
+                playerNode.volume = 0
+                playerNode.play()
+                isPlaying = true
+            } catch {
+                print("Audio Engine failed: \(error)")
+            }
         }
     }
 
     func updateRollingSound(velocity: Float) {
-        // Adjust based on speed
-        // Speed 0 -> Silent
-        // Speed Max (~5.0?) -> Loud, Higher Pitch/Freq
-
         let speed = Double(velocity)
-        let maxSpeed = 3.0  // Reference max speed
+        let maxSpeed = 4.0  // Reference max speed
 
-        let threshold: Float = 0.03
-        if speed < 0.1 {
-            playerNode.volume = 0
-            return
-        }
-
-        // Volume: 0 to 1
-
-        if velocity > threshold {
-            let normalized = min(speed / maxSpeed, 1.0)
-            // Volume uses quadratic curve for smoother fade-in
-            let targetVolume = pow(normalized, 2)
-
-            // Frequency: 80Hz to 800Hz capped range
-            let minFreq = 80.0
-            let maxFreq = 800.0
-            let targetFreq = minFreq + (maxFreq - minFreq) * normalized
-
-            playerNode.volume = Float(targetVolume)
-            equalizer.bands[0].frequency = Float(targetFreq)
-
-            if !isPlaying {
-                playerNode.play()
-                isPlaying = true
-            }
-        } else {
-            playerNode.volume = 0.0
+        let threshold: Float = 0.05  // Lower threshold
+        if speed < Double(threshold) {
             if isPlaying {
+                playerNode.volume = 0
                 playerNode.pause()
                 isPlaying = false
             }
+            return
         }
+
+        // Volume logic: subtle rumble
+        let normalized = min(speed / maxSpeed, 1.0)
+        let targetVolume = Float(normalized * 0.5)  // Max 50% gain for subtlety
+
+        // Frequency scaling
+        let minFreq = 100.0
+        let maxFreq = 600.0
+        let targetFreq = minFreq + (maxFreq - minFreq) * normalized
+
+        if !isPlaying {
+            playerNode.play()
+            isPlaying = true
+        }
+
+        playerNode.volume = targetVolume
+        equalizer.bands[0].frequency = Float(targetFreq)
     }
 }
