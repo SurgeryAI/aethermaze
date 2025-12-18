@@ -112,6 +112,29 @@ struct ContentView: View {
             }
             .padding()
         }
+        // Capture keyboard events for the Simulator
+        .focusable()
+        .onKeyPress { press in
+            switch press.key {
+            case .upArrow:
+                motionController.updateKeyboardTilt(pitchDelta: -1.0, rollDelta: 0)
+                return .handled
+            case .downArrow:
+                motionController.updateKeyboardTilt(pitchDelta: 1.0, rollDelta: 0)
+                return .handled
+            case .leftArrow:
+                motionController.updateKeyboardTilt(pitchDelta: 0, rollDelta: -1.0)
+                return .handled
+            case .rightArrow:
+                motionController.updateKeyboardTilt(pitchDelta: 0, rollDelta: 1.0)
+                return .handled
+            case .escape:
+                motionController.resetKeyboardTilt()
+                return .handled
+            default:
+                return .ignored
+            }
+        }
     }
 }
 
@@ -138,74 +161,52 @@ struct ARViewContainer: UIViewRepresentable {
         // 3. Setup Physics subscription
         context.coordinator.subscribeToEvents(arView: arView, gameCoordinator: gameCoordinator)
 
+        // 4. Start Audio Engine
+        SoundManager.shared.startEngine()
+
         return arView
     }
 
     func updateUIView(_ uiView: ARView, context: Context) {
-        // This runs whenever the MotionController updates or GameCoordinator updates
-
-        // Check if level changed or restart requested
-        if gameCoordinator.gameState == .levelComplete {
-            // Wait a bit handled in coordinator, but we might want to prevent movement?
+        // Find or create GameAnchor
+        guard let gameAnchor = uiView.scene.findEntity(named: anchorName) as? AnchorEntity else {
+            setupGame(arView: uiView)
+            return
         }
 
-        // If the coordinate signals a "reset" (we track level changes via a local var in coordinator if needed,
-        // but RealityKit views are tricky to "rebuild".
-        // For this prototype, if the level in coordinator != the level we built, we rebuild.
-        // However, updateUIView is called frequently. We need a way to detect "New Level" trigger.
-        // A simple way is to check the anchor name or a tag, OR just rebuild if the scene is empty.
+        // Check for level change
+        let currentBuiltLevel = gameAnchor.components[LevelComponent.self]?.level ?? -1
+        if currentBuiltLevel != gameCoordinator.currentLevel {
+            uiView.scene.removeAnchor(gameAnchor)
+            setupGame(arView: uiView)
+            return
+        }
 
-        // Simple Reset Logic:
-        // If the gameCoordinator.gameState just switched to .playing (after a win/loss), we might need to reset.
-        // But for "Next Level", we genuinely need to rebuild.
+        // Motion Handling (Tilt the Maze)
+        if gameCoordinator.gameState == .playing {
+            let g = motionController.currentGravity
+            let multiplier: Float = 25.0
 
-        if let gameAnchor = uiView.scene.findEntity(named: anchorName) as? AnchorEntity {
+            let combinedPitch = Double(g.z / multiplier) + Double(motionController.keyboardPitch)
+            let combinedRoll = Double(g.x / multiplier) + Double(motionController.keyboardRoll)
 
-            // Helper to check if we need to rebuild the level (e.g. level index mismatch)
-            let currentBuiltLevel = gameAnchor.components[LevelComponent.self]?.level ?? -1
-            if currentBuiltLevel != gameCoordinator.currentLevel {
-                uiView.scene.removeAnchor(gameAnchor)
-                setupGame(arView: uiView)
-                return
-            }
+            let rotation =
+                simd_quatf(angle: Float(combinedPitch), axis: [1, 0, 0])
+                * simd_quatf(angle: Float(-combinedRoll), axis: [0, 0, 1])
 
-            // Motion Handling (Tilt the Maze)
-            // Only tilt if playing
-            if gameCoordinator.gameState == .playing {
-                let g = motionController.currentGravity
+            gameAnchor.transform.rotation = rotation
 
-                // Decrease divisor to INCREASE sensitivity (steeper angle for same tilt)
-                let multiplier: Float = 25.0  // Reduced sensitivity (was 10.0)
-                let pitch = Double(g.z / multiplier)  // Forward/Back
-                let roll = Double(g.x / multiplier)  // Left/Right
-
-                let rotation =
-                    simd_quatf(angle: Float(pitch), axis: [1, 0, 0])
-                    * simd_quatf(angle: Float(-roll), axis: [0, 0, 1])
-
-                // Smoothly animate
-                // Note: move(to: ...) is better for smoothing if avail, but setting property works for 60fps too
-                gameAnchor.transform.rotation = rotation
-                if let marble = uiView.scene.findEntity(named: "Marble") as? ModelEntity {
-
-                    // [NEW] Audio Updates
-                    // Ensure engine connects if needed (lazy start)
-                    SoundManager.shared.startEngine()
-
-                    if let velocity = marble.physicsMotion?.linearVelocity {
-                        let speed = length(velocity)
-                        SoundManager.shared.updateRollingSound(velocity: speed)
-                    }
-
-                    // Check if one is Marble and other is DeathPlane or WinZone
-                    // ... (keep existing Logic if it was here, or we are adding this to the frame update)
+            // Optimized: Find marble once or track it
+            if let marble = uiView.scene.findEntity(named: "Marble") as? ModelEntity {
+                if let velocity = marble.physicsMotion?.linearVelocity {
+                    let speed = length(velocity)
+                    SoundManager.shared.updateRollingSound(velocity: speed)
+                    HapticManager.shared.playRollingHaptic(intensity: speed)
                 }
             }
-
-            // Death/Win Logic Handling is done via Event Subscription in makeCoordinator
         } else {
-            // If anchor missing, build it
-            setupGame(arView: uiView)
+            // Stop sound when not playing
+            SoundManager.shared.updateRollingSound(velocity: 0)
         }
     }
 

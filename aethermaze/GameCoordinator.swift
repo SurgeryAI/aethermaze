@@ -23,6 +23,7 @@ class GameCoordinator: ObservableObject {
     @Published var maxMarbles: Int = 5
     private var levelStartTime: TimeInterval = 0
     private var timer: AnyCancellable?
+    @Published var hasFallenThisLevel: Bool = false
     private var isRespawning = false
 
     init() {
@@ -33,20 +34,12 @@ class GameCoordinator: ObservableObject {
         // [FIX] Guard against double-death or post-gameover collisions
         guard gameState == .playing, !isRespawning else { return }
         isRespawning = true
+        hasFallenThisLevel = true
 
         // Logic: You USED a marble.
-        // If you have used 5 and limit is 5, you are done.
-        // Or is it "Lives Remaining"? The UI says "Marbles Used".
-        // Let's say Limit is 5.
-        // Start: Used 1. (Alive).
-        // Die: Used 2.
-        // ...
-        // Die: Used 5. (Alive).
-        // Die: Used 6 > 5 -> Game Over.
-
         if marblesUsed >= maxMarbles {
             gameOver()
-            isRespawning = false  // Reset immediately since we aren't restarting level
+            isRespawning = false
             return
         }
 
@@ -72,20 +65,22 @@ class GameCoordinator: ObservableObject {
 
         // Scoring Formula
         let timeBonus = max(0, 500 - (Int(elapsedTime) * 10))
-        let levelScore = 1000 + timeBonus
+        var levelScore = 1000 + timeBonus
+
+        // [NEW] Perfect Level Bonus
+        if !hasFallenThisLevel {
+            levelScore += 500
+        }
 
         score += levelScore
 
         // [NEW] Bonus Marble Logic
-        // Add +1 Max Marble every 2 levels completed?
-        // Current Level 1 Complete -> Next is 2. (Count 1).
-        // Current Level 2 Complete -> Next is 3. (Count 2). -> Bonus?
-        // "Add an extra marble to the game every two levels"
         if currentLevel % 2 == 0 {
             maxMarbles += 1
         }
 
         currentLevel += 1
+        hasFallenThisLevel = false
         gameState = .levelComplete
         stopTimer()
 

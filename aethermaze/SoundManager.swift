@@ -42,7 +42,7 @@ class SoundManager: ObservableObject {
     }
 
     private func generateNoiseBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        // Generate 1 second of random noise
+        // Brown Noise: Integrate white noise. Sounds like a deep rumble/rolling.
         let frameCount = AVAudioFrameCount(format.sampleRate)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
             return nil
@@ -52,9 +52,19 @@ class SoundManager: ObservableObject {
         let channelCount = Int(format.channelCount)
         for channel in 0..<channelCount {
             let data = buffer.floatChannelData![channel]
+            var lastValue: Float = 0
             for i in 0..<Int(frameCount) {
-                // Simple white noise: random -1.0 to 1.0
-                data[i] = Float.random(in: -1.0...1.0) * 0.5  // Reduce volume
+                let white = Float.random(in: -1.0...1.0) * 0.1
+                var brown = lastValue + white
+
+                // Keep it in range (-1.0 to 1.0) and prevent DC drift
+                if brown > 1.0 { brown = 2.0 - brown } else if brown < -1.0 { brown = -2.0 - brown }
+
+                // Subtle high-pass filter to prevent DC offset build-up
+                brown *= 0.99
+
+                data[i] = brown * 0.3  // Volume adjustment
+                lastValue = brown
             }
         }
         return buffer

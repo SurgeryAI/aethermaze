@@ -30,8 +30,6 @@ final class MazeGenerator {
 
         generateRecursiveBacktracker(width: width, height: height)
 
-        generateRecursiveBacktracker(width: width, height: height)
-
         // [NEW] Complexity: Remove 10% of walls to create loops
         removeRandomWalls(width: width, height: height, percentage: 0.10)
 
@@ -39,8 +37,8 @@ final class MazeGenerator {
         placeStartAndEnd(width: width, height: height)  // Ensure start/end are always clear
 
         // Pass the parent entity to these functions
-        create3DFloor(parent: parent)
-        create3DWalls(parent: parent)
+        createMergedFloor(parent: parent)
+        createMergedWalls(parent: parent)
         createStartZone(parent: parent)  // [NEW] Visual start
         createWinZone(width: width, height: height, parent: parent)
         create3DMarble(parent: parent)  // Create marble last
@@ -284,121 +282,198 @@ final class MazeGenerator {
     // MARK: - 3D Entity Creation
 
     // REFACTORED: Create individual tiles instead of one big plane
-    private func create3DFloor(parent: Entity) {
-        // Standard floor tile
-        let tileMesh = MeshResource.generateBox(width: unitSize, height: 0.1, depth: unitSize)
-
-        var floorMaterial = PhysicallyBasedMaterial()
-        floorMaterial.baseColor = .init(tint: .brown)
-        floorMaterial.roughness = 0.8
-
-        // Hole tile material (maybe darker?)
-        var holeMaterial = PhysicallyBasedMaterial()
-        holeMaterial.baseColor = .init(tint: .brown)
-        holeMaterial.roughness = 0.8
+    private func createMergedFloor(parent: Entity) {
+        var standardPositions: [SIMD3<Float>] = []
+        var holePositions: [SIMD3<Float>] = []
 
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
-                // Explicit SIMD3<Float>
                 let position: SIMD3<Float> = [Float(x) * unitSize, -0.05, Float(y) * unitSize]
-
-                if !cell.hasHole {
-                    let tile = ModelEntity(mesh: tileMesh, materials: [floorMaterial])
-                    tile.position = position
-
-                    // [FIX] Tunneling Prevention: Thicker Collision Floor
-                    // Create an invisible child entity for physics that extends deep downwards
-                    let physicsChild = Entity()
-                    let thickHeight: Float = 1.0
-                    // Visual Tile Center Y: -0.05 (Height 0.1). Surface at 0.0.
-                    // Sticky Physics Center Y should be such that Top is at 0.0.
-                    // CenterY = Top - (Height/2) = 0.0 - 0.5 = -0.5.
-                    // Offset from Parent (-0.05): -0.5 - (-0.05) = -0.45.
-                    physicsChild.position = [0, -0.45, 0]
-
-                    let material = PhysicsMaterialResource.generate(
-                        staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
-
-                    physicsChild.components.set(
-                        PhysicsBodyComponent(
-                            massProperties: .default,
-                            material: material,
-                            mode: .kinematic))
-
-                    physicsChild.components.set(
-                        CollisionComponent(shapes: [
-                            // [FIX] Overlap tiles by 5% to seal "cracks" between them
-                            ShapeResource.generateBox(
-                                width: unitSize * 1.05, height: thickHeight, depth: unitSize * 1.05)
-                        ]))
-
-                    tile.addChild(physicsChild)
-                    parent.addChild(tile)
+                if cell.hasHole {
+                    holePositions.append(position)
                 } else {
-                    // [NEW] Hole Tile
-                    if let holeMesh = generateHoleTileMesh() {
-                        let tile = ModelEntity(mesh: holeMesh, materials: [holeMaterial])
-                        tile.position = position
-
-                        // FIXED: Use Composed Physics Shapes (4 Boxes) instead of async generateStaticMesh
-                        // This is synchronous and robust.
-                        // Frame around the hole (Size 1.0, Hole ~0.8)
-                        // Left, Right, Top, Bottom strips.
-                        // Hole Radius 0.4 -> Gap 0.8. Border 0.1 on each side.
-
-                        let sideWidth: Float = (unitSize - 0.8) / 2.0  // ~0.1
-                        let fullLength: Float = unitSize
-                        let innerLength: Float = unitSize - (sideWidth * 2)  // 0.8
-                        let height: Float = 0.1
-
-                        // Left Strip
-                        let leftPos = SIMD3<Float>(-(unitSize / 2) + (sideWidth / 2), 0, 0)
-
-                        // Right Strip
-                        let rightPos = SIMD3<Float>((unitSize / 2) - (sideWidth / 2), 0, 0)
-
-                        // Top Strip (bridging the middle) - Along Z
-                        let topPos = SIMD3<Float>(0, 0, -(unitSize / 2) + (sideWidth / 2))
-
-                        // Bottom Strip
-                        let botPos = SIMD3<Float>(0, 0, (unitSize / 2) - (sideWidth / 2))
-
-                        // Combine with Offsets?
-                        // CollisionComponent takes [ShapeResource]. BUT ShapeResource.generateBox creates centered shapes.
-                        // We need `ShapeResource.offset(...)`? No, RealityKit Shapes are local.
-                        // We actually need separate ENTITIES to offset the shapes?
-                        // OR we can use `.generateBox(size: ...).offset(...)` if available? No.
-                        // We can only supply a list of shapes, but we can't offset them easily inside one component unless we use Compound Shapes (which is generateStaticMesh or similar).
-
-                        // WORKAROUND: Create 4 invisible child entities for the physics parts.
-                        // The main 'tile' entity holds the Visual Mesh (Ghost) and NO Physics itself?
-                        // OR we attach the physics to children.
-
-                        // Let's create 4 child collision nodes.
-                        let pMat = PhysicsMaterialResource.generate(
-                            staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
-
-                        func createPart(size: SIMD3<Float>, pos: SIMD3<Float>) {
-                            let part = Entity()
-                            part.position = pos
-                            part.components.set(
-                                CollisionComponent(shapes: [.generateBox(size: size)]))
-                            part.components.set(
-                                PhysicsBodyComponent(
-                                    massProperties: .default, material: pMat, mode: .kinematic))
-                            tile.addChild(part)
-                        }
-
-                        createPart(size: [sideWidth, height, fullLength], pos: leftPos)
-                        createPart(size: [sideWidth, height, fullLength], pos: rightPos)
-                        createPart(size: [innerLength, height, sideWidth], pos: topPos)
-                        createPart(size: [innerLength, height, sideWidth], pos: botPos)
-
-                        parent.addChild(tile)
-                    }
+                    standardPositions.append(position)
                 }
             }
         }
+
+        // 1. Create Standard Floor Entity
+        if !standardPositions.isEmpty {
+            let floorEntity = Entity()
+            floorEntity.name = "MergedFloor"
+
+            // Generate combined mesh
+            if let combinedMesh = generateMergedBoxMesh(
+                positions: standardPositions, boxSize: [unitSize, 0.1, unitSize])
+            {
+                var floorMaterial = PhysicallyBasedMaterial()
+                floorMaterial.baseColor = .init(tint: .brown)
+                floorMaterial.roughness = 0.8
+
+                let model = ModelEntity(mesh: combinedMesh, materials: [floorMaterial])
+                floorEntity.addChild(model)
+            }
+
+            // Generate combined collisions
+            let material = PhysicsMaterialResource.generate(
+                staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
+            var shapes: [ShapeResource] = []
+            let thickHeight: Float = 1.0
+
+            for pos in standardPositions {
+                // Adjust position to be centered for the thick floor
+                let collisionPos = pos + SIMD3<Float>(0, -0.4, 0)  // Center of 1.0 height floor
+                shapes.append(
+                    ShapeResource.generateBox(
+                        width: unitSize * 1.02, height: thickHeight, depth: unitSize * 1.02
+                    ).offsetBy(translation: collisionPos))
+            }
+
+            floorEntity.components.set(CollisionComponent(shapes: shapes))
+            floorEntity.components.set(
+                PhysicsBodyComponent(massProperties: .default, material: material, mode: .kinematic)
+            )
+            parent.addChild(floorEntity)
+        }
+
+        // 2. Create Hole Tiles (Batch them as one entity if possible, or keep separate if complex)
+        // For simplicity and to reuse the existing hole mesh logic, we'll create one entity per hole but share the mesh.
+        if !holePositions.isEmpty, let holeMesh = generateHoleTileMesh() {
+            var holeMaterial = PhysicallyBasedMaterial()
+            holeMaterial.baseColor = .init(tint: .brown)
+            holeMaterial.roughness = 0.8
+
+            let pMat = PhysicsMaterialResource.generate(
+                staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
+            let sideWidth: Float = (unitSize - 0.8) / 2.0
+            let fullLength: Float = unitSize
+            let innerLength: Float = unitSize - (sideWidth * 2)
+            let height: Float = 0.1
+
+            for pos in holePositions {
+                let holeTile = ModelEntity(mesh: holeMesh, materials: [holeMaterial])
+                holeTile.position = pos
+                holeTile.name = "HoleTile"
+
+                // Add 4 collision boxes for the hole frame
+                let leftPos = SIMD3<Float>(-(unitSize / 2) + (sideWidth / 2), 0, 0)
+                let rightPos = SIMD3<Float>((unitSize / 2) - (sideWidth / 2), 0, 0)
+                let topPos = SIMD3<Float>(0, 0, -(unitSize / 2) + (sideWidth / 2))
+                let botPos = SIMD3<Float>(0, 0, (unitSize / 2) - (sideWidth / 2))
+
+                let shapes = [
+                    ShapeResource.generateBox(size: [sideWidth, height, fullLength]).offsetBy(
+                        translation: leftPos),
+                    ShapeResource.generateBox(size: [sideWidth, height, fullLength]).offsetBy(
+                        translation: rightPos),
+                    ShapeResource.generateBox(size: [innerLength, height, sideWidth]).offsetBy(
+                        translation: topPos),
+                    ShapeResource.generateBox(size: [innerLength, height, sideWidth]).offsetBy(
+                        translation: botPos),
+                ]
+
+                holeTile.components.set(CollisionComponent(shapes: shapes))
+                holeTile.components.set(
+                    PhysicsBodyComponent(massProperties: .default, material: pMat, mode: .kinematic)
+                )
+                parent.addChild(holeTile)
+            }
+        }
+    }
+
+    private func generateMergedBoxMesh(positions: [SIMD3<Float>], boxSize: SIMD3<Float>)
+        -> MeshResource?
+    {
+        var combinedDesc = MeshDescriptor()
+        var allPositions: [SIMD3<Float>] = []
+        var allNormals: [SIMD3<Float>] = []
+        var allIndices: [UInt32] = []
+        var allUVs: [SIMD2<Float>] = []
+
+        let halfSize = boxSize / 2.0
+
+        for (i, pos) in positions.enumerated() {
+            let offset = UInt32(i * 24)  // 24 vertices per box (4 per face * 6 faces)
+
+            // Vertices and Normals for a box
+            // This is a bit verbose, but necessary for a manual MeshDescriptor
+            // 6 faces * 4 vertices = 24
+
+            // Top face (+Y)
+            allPositions.append(contentsOf: [
+                pos + SIMD3(-halfSize.x, halfSize.y, -halfSize.z),
+                pos + SIMD3(halfSize.x, halfSize.y, -halfSize.z),
+                pos + SIMD3(halfSize.x, halfSize.y, halfSize.z),
+                pos + SIMD3(-halfSize.x, halfSize.y, halfSize.z),
+            ])
+            allNormals.append(contentsOf: Array(repeating: [0, 1, 0], count: 4))
+
+            // Bottom face (-Y)
+            allPositions.append(contentsOf: [
+                pos + SIMD3(-halfSize.x, -halfSize.y, halfSize.z),
+                pos + SIMD3(halfSize.x, -halfSize.y, halfSize.z),
+                pos + SIMD3(halfSize.x, -halfSize.y, -halfSize.z),
+                pos + SIMD3(-halfSize.x, -halfSize.y, -halfSize.z),
+            ])
+            allNormals.append(contentsOf: Array(repeating: [0, -1, 0], count: 4))
+
+            // Front face (+Z)
+            allPositions.append(contentsOf: [
+                pos + SIMD3(-halfSize.x, -halfSize.y, halfSize.z),
+                pos + SIMD3(-halfSize.x, halfSize.y, halfSize.z),
+                pos + SIMD3(halfSize.x, halfSize.y, halfSize.z),
+                pos + SIMD3(halfSize.x, -halfSize.y, halfSize.z),
+            ])
+            allNormals.append(contentsOf: Array(repeating: [0, 0, 1], count: 4))
+
+            // Back face (-Z)
+            allPositions.append(contentsOf: [
+                pos + SIMD3(halfSize.x, -halfSize.y, -halfSize.z),
+                pos + SIMD3(halfSize.x, halfSize.y, -halfSize.z),
+                pos + SIMD3(-halfSize.x, halfSize.y, -halfSize.z),
+                pos + SIMD3(-halfSize.x, -halfSize.y, -halfSize.z),
+            ])
+            allNormals.append(contentsOf: Array(repeating: [0, 0, -1], count: 4))
+
+            // Left face (-X)
+            allPositions.append(contentsOf: [
+                pos + SIMD3(-halfSize.x, -halfSize.y, -halfSize.z),
+                pos + SIMD3(-halfSize.x, halfSize.y, -halfSize.z),
+                pos + SIMD3(-halfSize.x, halfSize.y, halfSize.z),
+                pos + SIMD3(-halfSize.x, -halfSize.y, halfSize.z),
+            ])
+            allNormals.append(contentsOf: Array(repeating: [-1, 0, 0], count: 4))
+
+            // Right face (+X)
+            allPositions.append(contentsOf: [
+                pos + SIMD3(halfSize.x, -halfSize.y, halfSize.z),
+                pos + SIMD3(halfSize.x, halfSize.y, halfSize.z),
+                pos + SIMD3(halfSize.x, halfSize.y, -halfSize.z),
+                pos + SIMD3(halfSize.x, -halfSize.y, -halfSize.z),
+            ])
+            allNormals.append(contentsOf: Array(repeating: [1, 0, 0], count: 4))
+
+            // Indices for 6 faces
+            for f in 0..<6 {
+                let faceOffset = offset + UInt32(f * 4)
+                allIndices.append(contentsOf: [
+                    faceOffset, faceOffset + 1, faceOffset + 2, faceOffset, faceOffset + 2,
+                    faceOffset + 3,
+                ])
+            }
+
+            // UVs (simple projection)
+            for _ in 0..<6 {
+                allUVs.append(contentsOf: [[0, 0], [1, 0], [1, 1], [0, 1]])
+            }
+        }
+
+        combinedDesc.positions = MeshBuffers.Positions(allPositions)
+        combinedDesc.normals = MeshBuffers.Normals(allNormals)
+        combinedDesc.textureCoordinates = MeshBuffers.TextureCoordinates(allUVs)
+        combinedDesc.primitives = .triangles(allIndices)
+
+        return try? MeshResource.generate(from: [combinedDesc])
     }
 
     // Procedural Mesh for Square with Round Hole
@@ -585,104 +660,163 @@ final class MazeGenerator {
         parent.addChild(winZone)
     }
 
-    private func create3DWalls(parent: Entity) {
-
-        // Increased height by 25%: 0.5 * 1.25 = 0.625
+    private func createMergedWalls(parent: Entity) {
         let wallHeight: Float = 0.8
-        let wallMesh = MeshResource.generateBox(width: unitSize, height: wallHeight, depth: 0.05)
-
-        // [NEW] Texturing
-        var wallMaterial = SimpleMaterial()
-        // Try to load texture (Requires "wood_texture" in Assets or Bundle)
-        if let texture = try? TextureResource.load(named: "wood_texture") {
-            wallMaterial.color = .init(tint: .white, texture: .init(texture))
-            wallMaterial.metallic = .float(0.0)
-            wallMaterial.roughness = .float(0.8)
-        } else {
-            print("Warning: wood_texture not found. Using fallback color.")
-            wallMaterial = SimpleMaterial(color: .brown, isMetallic: false)
-        }
+        var wallData: [(transform: Transform, size: SIMD3<Float>)] = []
 
         for (y, row) in mazeMap.enumerated() {
             for (x, cell) in row.enumerated() {
-
                 let basePosition = SIMD3<Float>(Float(x) * unitSize, 0, Float(y) * unitSize)
-                let wallY: Float = wallHeight / 2  // 0.3125
+                let wallY: Float = wallHeight / 2
 
-                // Existing Checks for East/South (Internal & Outer East/South)
                 if cell.walls[.east] == true {
-                    let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    // East wall separates X and X+1. Needs to run along Z.
-                    // Original mesh is X-long. So Rotate 90 Y.
-                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(unitSize / 2, wallY, 0)
-                    wall.components.set(wallPhysicsComponent())
-                    wall.components.set(
-                        CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
-                        ]))
-                    wall.name = "Wall"
-                    parent.addChild(wall)
+                    var t = Transform()
+                    t.rotation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+                    t.translation = basePosition + SIMD3<Float>(unitSize / 2, wallY, 0)
+                    wallData.append((t, [unitSize, wallHeight, 0.05]))
                 }
 
                 if cell.walls[.south] == true {
-                    let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    // South wall separates Y and Y+1 (Z and Z+1). Needs to run along X.
-                    // Original mesh is X-long. No Rotation.
-                    // wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(0, wallY, unitSize / 2)
-                    wall.components.set(wallPhysicsComponent())
-                    wall.components.set(
-                        CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
-
-                        ]))
-                    wall.name = "Wall"
-                    parent.addChild(wall)
+                    var t = Transform()
+                    t.translation = basePosition + SIMD3<Float>(0, wallY, unitSize / 2)
+                    wallData.append((t, [unitSize, wallHeight, 0.05]))
                 }
 
-                // [NEW] Border Checks: North and West
-                // Only needed for y==0 (North) and x==0 (West) because internal walls are covered by the neighbor's South/East
-
                 if y == 0 && cell.walls[.north] == true {
-                    let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    // No Rotation
-                    // wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(0, wallY, -unitSize / 2)
-                    wall.components.set(wallPhysicsComponent())
-                    wall.components.set(
-                        CollisionComponent(shapes: [
-
-                            .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
-
-                        ]))
-                    wall.name = "Wall"
-                    parent.addChild(wall)
+                    var t = Transform()
+                    t.translation = basePosition + SIMD3<Float>(0, wallY, -unitSize / 2)
+                    wallData.append((t, [unitSize, wallHeight, 0.05]))
                 }
 
                 if x == 0 && cell.walls[.west] == true {
-                    let wall = ModelEntity(mesh: wallMesh, materials: [wallMaterial])
-                    wall.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
-                    wall.position = basePosition + SIMD3<Float>(-unitSize / 2, wallY, 0)
-                    wall.components.set(wallPhysicsComponent())
-                    wall.components.set(
-                        CollisionComponent(shapes: [
-                            .generateBox(width: unitSize, height: wallHeight, depth: 0.05)
-
-                        ]))
-                    wall.name = "Wall"
-                    parent.addChild(wall)
+                    var t = Transform()
+                    t.rotation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+                    t.translation = basePosition + SIMD3<Float>(-unitSize / 2, wallY, 0)
+                    wallData.append((t, [unitSize, wallHeight, 0.05]))
                 }
-
-                // Note: No longer need 'createHoleTrigger' because the hole is now a physical gap!
             }
         }
+
+        if wallData.isEmpty { return }
+
+        let wallsEntity = Entity()
+        wallsEntity.name = "MergedWalls"
+
+        // Generate combined mesh
+        if let combinedMesh = generateMergedBoxMeshWithTransforms(wallData: wallData) {
+            var wallMaterial = SimpleMaterial()
+            if let texture = try? TextureResource.load(named: "wood_texture") {
+                wallMaterial.color = .init(tint: .white, texture: .init(texture))
+                wallMaterial.metallic = .float(0.0)
+                wallMaterial.roughness = .float(0.8)
+            } else {
+                wallMaterial = SimpleMaterial(color: .brown, isMetallic: false)
+            }
+
+            let model = ModelEntity(mesh: combinedMesh, materials: [wallMaterial])
+            wallsEntity.addChild(model)
+        }
+
+        // Generate combined collisions
+        var shapes: [ShapeResource] = []
+        for data in wallData {
+            shapes.append(
+                ShapeResource.generateBox(size: data.size).offsetBy(
+                    rotation: data.transform.rotation, translation: data.transform.translation))
+        }
+
+        wallsEntity.components.set(CollisionComponent(shapes: shapes))
+        wallsEntity.components.set(
+            PhysicsBodyComponent(
+                massProperties: .default,
+                material: .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0),
+                mode: .kinematic))
+
+        parent.addChild(wallsEntity)
     }
 
-    private func wallPhysicsComponent() -> PhysicsBodyComponent {
-        var physics = PhysicsBodyComponent(massProperties: .default, mode: .kinematic)
-        physics.material = .generate(staticFriction: 0.1, dynamicFriction: 0.1, restitution: 0.0)
-        return physics
+    private func generateMergedBoxMeshWithTransforms(
+        wallData: [(transform: Transform, size: SIMD3<Float>)]
+    ) -> MeshResource? {
+        var combinedDesc = MeshDescriptor()
+        var allPositions: [SIMD3<Float>] = []
+        var allNormals: [SIMD3<Float>] = []
+        var allIndices: [UInt32] = []
+        var allUVs: [SIMD2<Float>] = []
+
+        for (i, data) in wallData.enumerated() {
+            let offset = UInt32(i * 24)
+            let halfSize = data.size / 2.0
+            let matrix = data.transform.matrix
+
+            func addFace(
+                p1: SIMD3<Float>, p2: SIMD3<Float>, p3: SIMD3<Float>, p4: SIMD3<Float>,
+                normal: SIMD3<Float>
+            ) {
+                let transformedNormal = normalize(
+                    simd_make_float3(matrix * simd_make_float4(normal, 0)))
+                allPositions.append(contentsOf: [
+                    simd_make_float3(matrix * simd_make_float4(p1, 1)),
+                    simd_make_float3(matrix * simd_make_float4(p2, 1)),
+                    simd_make_float3(matrix * simd_make_float4(p3, 1)),
+                    simd_make_float3(matrix * simd_make_float4(p4, 1)),
+                ])
+                allNormals.append(contentsOf: Array(repeating: transformedNormal, count: 4))
+                allUVs.append(contentsOf: [[0, 0], [1, 0], [1, 1], [0, 1]])
+            }
+
+            // Top (+Y)
+            addFace(
+                p1: [-halfSize.x, halfSize.y, -halfSize.z],
+                p2: [halfSize.x, halfSize.y, -halfSize.z],
+                p3: [halfSize.x, halfSize.y, halfSize.z],
+                p4: [-halfSize.x, halfSize.y, halfSize.z], normal: [0, 1, 0])
+            // Bottom (-Y)
+            addFace(
+                p1: [-halfSize.x, -halfSize.y, halfSize.z],
+                p2: [halfSize.x, -halfSize.y, halfSize.z],
+                p3: [halfSize.x, -halfSize.y, -halfSize.z],
+                p4: [-halfSize.x, -halfSize.y, -halfSize.z], normal: [0, -1, 0])
+            // Front (+Z)
+            addFace(
+                p1: [-halfSize.x, -halfSize.y, halfSize.z],
+                p2: [-halfSize.x, halfSize.y, halfSize.z],
+                p3: [halfSize.x, halfSize.y, halfSize.z],
+                p4: [halfSize.x, -halfSize.y, halfSize.z], normal: [0, 0, 1])
+            // Back (-Z)
+            addFace(
+                p1: [halfSize.x, -halfSize.y, -halfSize.z],
+                p2: [halfSize.x, halfSize.y, -halfSize.z],
+                p3: [-halfSize.x, halfSize.y, -halfSize.z],
+                p4: [-halfSize.x, -halfSize.y, -halfSize.z], normal: [0, 0, -1])
+            // Left (-X)
+            addFace(
+                p1: [-halfSize.x, -halfSize.y, -halfSize.z],
+                p2: [-halfSize.x, halfSize.y, -halfSize.z],
+                p3: [-halfSize.x, halfSize.y, halfSize.z],
+                p4: [-halfSize.x, -halfSize.y, halfSize.z], normal: [-1, 0, 0])
+            // Right (+X)
+            addFace(
+                p1: [halfSize.x, -halfSize.y, halfSize.z],
+                p2: [halfSize.x, halfSize.y, halfSize.z],
+                p3: [halfSize.x, halfSize.y, -halfSize.z],
+                p4: [halfSize.x, -halfSize.y, -halfSize.z], normal: [1, 0, 0])
+
+            for f in 0..<6 {
+                let faceOffset = offset + UInt32(f * 4)
+                allIndices.append(contentsOf: [
+                    faceOffset, faceOffset + 1, faceOffset + 2, faceOffset, faceOffset + 2,
+                    faceOffset + 3,
+                ])
+            }
+        }
+
+        combinedDesc.positions = MeshBuffers.Positions(allPositions)
+        combinedDesc.normals = MeshBuffers.Normals(allNormals)
+        combinedDesc.textureCoordinates = MeshBuffers.TextureCoordinates(allUVs)
+        combinedDesc.primitives = .triangles(allIndices)
+
+        return try? MeshResource.generate(from: [combinedDesc])
     }
 
     private func createStartZone(parent: Entity) {
