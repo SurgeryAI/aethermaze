@@ -191,7 +191,12 @@ final class MazeGenerator {
                 }
             }
         }
-        floorEntity.components.set(CollisionComponent(shapes: shapes))
+        let solidGroup = CollisionGroup(rawValue: 1 << 0)
+        floorEntity.components.set(
+            CollisionComponent(
+                shapes: shapes,
+                filter: CollisionFilter(group: solidGroup, mask: solidGroup)
+            ))
         floorEntity.components.set(
             PhysicsBodyComponent(
                 massProperties: .default,
@@ -222,7 +227,12 @@ final class MazeGenerator {
                             ShapeResource.generateBox(size: [unitSize - sideW * 2, h, sideW])
                                 .offsetBy(translation: [0, -0.2, (unitSize / 2) - (sideW / 2)]),
                         ]
-                        holeTile.components.set(CollisionComponent(shapes: hs))
+                        let solidGroup = CollisionGroup(rawValue: 1 << 0)
+                        holeTile.components.set(
+                            CollisionComponent(
+                                shapes: hs,
+                                filter: CollisionFilter(group: solidGroup, mask: solidGroup)
+                            ))
                         holeTile.components.set(
                             PhysicsBodyComponent(
                                 massProperties: .default,
@@ -270,7 +280,7 @@ final class MazeGenerator {
 
     private func createRefinedWalls(parent: Entity) {
         let wallH: Float = 0.8
-        let wallT: Float = 0.15
+        let wallT: Float = 0.20  // Standardized thickness
         var meshData: [(Transform, SIMD3<Float>)] = []
         var collisionData: [(Transform, SIMD3<Float>)] = []
 
@@ -279,7 +289,8 @@ final class MazeGenerator {
                 let basePos = SIMD3<Float>(
                     Float(x) * unitSize, wallH / 2 - 0.01, Float(y) * unitSize)
                 let shimmerOffset: Float = 0.002
-                let fullSize = SIMD3<Float>(unitSize + wallT + 0.01, wallH, wallT)  // 1cm extra for overlap safety
+                // Unified size for both visual and collision
+                let exactSize = SIMD3<Float>(unitSize + wallT + 0.001, wallH, wallT)
 
                 // Horizontal Walls (East-West alignment)
                 if cell.walls[.south] == true {
@@ -288,11 +299,11 @@ final class MazeGenerator {
 
                     var visualT = t
                     visualT.translation.y += shimmerOffset
-                    meshData.append((visualT, fullSize))
+                    meshData.append((visualT, exactSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, fullSize))
+                    collisionData.append((collT, exactSize))
                 }
                 if y == 0 && cell.walls[.north] == true {
                     var t = Transform()
@@ -300,39 +311,39 @@ final class MazeGenerator {
 
                     var visualT = t
                     visualT.translation.y += shimmerOffset
-                    meshData.append((visualT, fullSize))
+                    meshData.append((visualT, exactSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, fullSize))
+                    collisionData.append((collT, exactSize))
                 }
 
                 // Vertical Walls (North-South alignment)
                 if cell.walls[.east] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    t.translation = basePos + [unitSize / 2, 0, 0]
+                    t.translation = basePos + [unitSize / 2, 0, 1e-5]  // Tiny offset for Z-fighting overlap
 
                     var visualT = t
                     visualT.translation.y -= shimmerOffset
-                    meshData.append((visualT, fullSize))
+                    meshData.append((visualT, exactSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, fullSize))
+                    collisionData.append((collT, exactSize))
                 }
                 if x == 0 && cell.walls[.west] == true {
                     var t = Transform()
                     t.rotation = .init(angle: .pi / 2, axis: [0, 1, 0])
-                    t.translation = basePos + [-unitSize / 2, 0, 0]
+                    t.translation = basePos + [-unitSize / 2, 0, 1e-5]
 
                     var visualT = t
                     visualT.translation.y -= shimmerOffset
-                    meshData.append((visualT, fullSize))
+                    meshData.append((visualT, exactSize))
 
                     var collT = t
                     collT.translation.y = wallH / 2
-                    collisionData.append((collT, fullSize))
+                    collisionData.append((collT, exactSize))
                 }
             }
         }
@@ -341,10 +352,10 @@ final class MazeGenerator {
         walls.name = "RefinedWalls"
         if let mesh = generateWallMesh(data: meshData) {
             var mat = PhysicallyBasedMaterial()
-            // Deep, rich wood brown
-            mat.baseColor = .init(tint: .init(red: 0.35, green: 0.22, blue: 0.12, alpha: 1.0))
-            mat.roughness = 0.6
-            mat.metallic = 0.05
+            // Even more premium mahogany wood
+            mat.baseColor = .init(tint: .init(red: 0.32, green: 0.18, blue: 0.1, alpha: 1.0))
+            mat.roughness = 0.5
+            mat.metallic = 0.08
             walls.addChild(ModelEntity(mesh: mesh, materials: [mat]))
         }
         var shapes: [ShapeResource] = []
@@ -353,7 +364,12 @@ final class MazeGenerator {
                 ShapeResource.generateBox(size: s).offsetBy(
                     rotation: t.rotation, translation: t.translation))
         }
-        walls.components.set(CollisionComponent(shapes: shapes))
+        let solidGroup = CollisionGroup(rawValue: 1 << 0)
+        walls.components.set(
+            CollisionComponent(
+                shapes: shapes,
+                filter: CollisionFilter(group: solidGroup, mask: solidGroup)
+            ))
         walls.components.set(
             PhysicsBodyComponent(
                 massProperties: .default, material: .generate(friction: 0.1, restitution: 0.0),
@@ -428,33 +444,61 @@ final class MazeGenerator {
         wz.name = "WinZone"
         wz.position = [Float(width - 1) * unitSize, 0, Float(height - 1) * unitSize]
 
-        // Use a filter to make it "Trigger Only" (it will still fire events but won't block)
-        let triggerGroup = CollisionGroup(rawValue: 1 << 31)
+        // Create a 'Trigger' group (group 2) that doesn't physically collide with the marble
+        let triggerGroup = CollisionGroup(rawValue: 1 << 1)
+        let solidGroup = CollisionGroup(rawValue: 1 << 0)
+
         wz.components.set(
             CollisionComponent(
                 shapes: [.generateBox(size: [0.8, 1, 0.8])],
-                filter: CollisionFilter(group: triggerGroup, mask: .all)
+                filter: CollisionFilter(group: triggerGroup, mask: solidGroup)  // Only interests solids (for events)
             ))
 
-        let pm = MeshResource.generateBox(size: [0.6, 0.01, 0.6])
-        let pmt = SimpleMaterial(color: .green, isMetallic: false)
-        let p = ModelEntity(mesh: pm, materials: [pmt])
+        // Premium Neon Goal
+        var winMat = PhysicallyBasedMaterial()
+        winMat.baseColor = .init(tint: .init(red: 0.1, green: 0.8, blue: 0.2, alpha: 1.0))
+        winMat.emissiveColor = .init(color: .green)
+        winMat.emissiveIntensity = 2.0
+        winMat.roughness = 0.1
+        winMat.metallic = 0.9
+
+        let pm = MeshResource.generateBox(size: [0.6, 0.02, 0.6])
+        let p = ModelEntity(mesh: pm, materials: [winMat])
         p.position = [0, 0.01, 0]
         wz.addChild(p)
 
-        let mm = MeshResource.generateSphere(radius: 0.2)
-        let m = ModelEntity(mesh: mm, materials: [pmt])
-        m.position = [0, 0.5, 0]
+        // Floating Beacon
+        let mm = MeshResource.generateSphere(radius: 0.15)
+        let m = ModelEntity(mesh: mm, materials: [winMat])
+        m.position = [0, 0.4, 0]
         wz.addChild(m)
         parent.addChild(wz)
     }
 
     private func createStartZone(parent: Entity) {
+        // Tech Marker Base
+        var baseMat = PhysicallyBasedMaterial()
+        baseMat.baseColor = .init(tint: .gray)
+        baseMat.metallic = 1.0
+        baseMat.roughness = 0.1
+
         let m = ModelEntity(
-            mesh: .generateBox(size: [0.6, 0.01, 0.6]),
-            materials: [SimpleMaterial(color: .blue, isMetallic: false)])
+            mesh: .generateBox(size: [0.65, 0.015, 0.65]),
+            materials: [baseMat])
         m.position = [0, 0.01, 0]
         m.name = "StartMarker"
+
+        // Glowing Core
+        var coreMat = PhysicallyBasedMaterial()
+        coreMat.baseColor = .init(tint: .cyan)
+        coreMat.emissiveColor = .init(color: .cyan)
+        coreMat.emissiveIntensity = 3.0
+
+        let core = ModelEntity(
+            mesh: .generateCylinder(height: 0.02, radius: 0.2), materials: [coreMat])
+        core.position = [0, 0.01, 0]
+        m.addChild(core)
+
         parent.addChild(m)
     }
 
@@ -475,7 +519,17 @@ final class MazeGenerator {
         p.angularDamping = 0.5
         p.isContinuousCollisionDetectionEnabled = true
         m.components.set(p)
-        m.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.15)]))
+        let solidGroup = CollisionGroup(rawValue: 1 << 0)
+        let triggerGroup = CollisionGroup(rawValue: 1 << 1)
+
+        m.components.set(
+            CollisionComponent(
+                shapes: [.generateSphere(radius: 0.15)],
+                filter: CollisionFilter(group: solidGroup, mask: [solidGroup, triggerGroup])
+            ))
+        // Note: Marble mask includes triggerGroup so events fire,
+        // but since WinZone has no dynamic physics body and filtering is set, it won't push.
+
         parent.addChild(m)
     }
 
