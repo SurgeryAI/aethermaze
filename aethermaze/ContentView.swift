@@ -262,10 +262,10 @@ struct ARViewContainer: UIViewRepresentable {
 
         // Camera framing to maximize screen real estate
         let camera = PerspectiveCamera()
-        camera.camera.fieldOfViewInDegrees = 65  // Slightly wider for immersion
+        camera.camera.fieldOfViewInDegrees = 60  // Tighter FOV for more scale
 
-        let camHeight = max(12.0, maxDim * 1.8)  // Lower camera
-        let camDist = max(0.0, maxDim * 0.1)  // More top-down
+        let camHeight = max(10.0, maxDim * 1.4)  // Moved closer to the maze
+        let camDist = max(0.0, maxDim * 0.1)  // Maintain top-down angle
 
         gameAnchor.addChild(camera)
         camera.look(
