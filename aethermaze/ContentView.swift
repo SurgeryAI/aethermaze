@@ -273,36 +273,28 @@ struct ARViewContainer: UIViewRepresentable {
             from: [centerX, camHeight, centerZ + camDist],
             relativeTo: gameAnchor)
 
-        // Immersive Background (Atmospheric Nebula + Starfield)
+        // Branded Background Backdrop (App Icon Nebula)
         let backgroundRoot = Entity()
         backgroundRoot.name = "BackgroundSystem"
 
-        // 1. Nebula Sphere
-        let bgMesh = MeshResource.generateSphere(radius: 60)
+        let planeMesh = MeshResource.generatePlane(width: 100, depth: 100)
         var bgMat = UnlitMaterial()
-        bgMat.color = .init(tint: .init(red: 0.05, green: 0.1, blue: 0.3, alpha: 1.0))  // Brighter/More Blue
-        let bgModel = ModelEntity(mesh: bgMesh, materials: [bgMat])
-        bgModel.scale = .init(x: -1, y: 1, z: 1)  // Invert
-        backgroundRoot.addChild(bgModel)
 
-        // 2. Simple Starfield (Sparse Points)
-        for _ in 0..<100 {
-            let star = ModelEntity(
-                mesh: .generateSphere(radius: 0.1),
-                materials: [UnlitMaterial(color: .white)]
-            )
-            // Random position in a large shell
-            let theta = Float.random(in: 0...(.pi * 2))
-            let phi = Float.random(in: 0...(.pi))
-            let r: Float = 55.0
-            star.position = [
-                r * sin(phi) * cos(theta),
-                r * sin(phi) * sin(theta),
-                r * cos(phi),
-            ]
-            backgroundRoot.addChild(star)
+        if let texture = try? TextureResource.load(named: "AppBackground") {
+            // Use 0.95 alpha to keep it slightly recessed/dark
+            bgMat.color = .init(tint: .white.withAlphaComponent(0.95), texture: .init(texture))
+        } else {
+            // Fallback to the deep nebula blue if texture fails
+            bgMat.color = .init(tint: .init(red: 0.05, green: 0.1, blue: 0.3, alpha: 1.0))
         }
 
+        let backgroundPlane = ModelEntity(mesh: planeMesh, materials: [bgMat])
+        // Position it far below the maze to create scale and a sense of 'floating' in a larger world
+        backgroundPlane.position = [0, -15.0, 0]
+        // Match the isometric/tilted vibe of the icon art
+        backgroundPlane.orientation = simd_quatf(angle: .pi / 16, axis: [1, 0, 0])
+
+        backgroundRoot.addChild(backgroundPlane)
         backgroundRoot.position = [centerX, 0, centerZ]
         gameAnchor.addChild(backgroundRoot)
         // let cameraAnchor = AnchorEntity(world: [0, 0, 0])
