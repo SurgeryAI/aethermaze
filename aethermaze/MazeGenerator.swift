@@ -39,6 +39,7 @@ final class MazeGenerator {
         createWinZone(width: width, height: height, parent: parent)
         create3DMarble(parent: parent)
         createDeathPlane(parent: parent)
+        placeShards(width: width, height: height, level: level, parent: parent)
     }
 
     // MARK: - Procedural Maze Algorithm
@@ -570,6 +571,74 @@ final class MazeGenerator {
         // but since WinZone has no dynamic physics body and filtering is set, it won't push.
 
         parent.addChild(m)
+    }
+
+    // MARK: - Aether Shards
+    private func placeShards(width: Int, height: Int, level: Int, parent: Entity) {
+        // Find dead ends (cells with 3 walls)
+        var deadEnds: [Point] = []
+        for y in 0..<height {
+            for x in 0..<width {
+                // Ignore start and end
+                if (x == 0 && y == 0) || (x == width - 1 && y == height - 1) { continue }
+                if mazeMap[y][x].hasHole { continue }
+
+                let wallCount = mazeMap[y][x].walls.values.filter { $0 }.count
+                if wallCount >= 3 {
+                    deadEnds.append(Point(x: x, y: y))
+                }
+            }
+        }
+
+        // Shuffle and take a few
+        let shardCount = max(3, deadEnds.count / 2)
+        let selected = deadEnds.shuffled().prefix(shardCount)
+
+        for point in selected {
+            createShard(at: point, parent: parent)
+        }
+    }
+
+    private func createShard(at point: Point, parent: Entity) {
+        let shard = Entity()
+        shard.name = "Shard_\(point.x)_\(point.y)"
+        shard.position = [Float(point.x) * unitSize, 0.3, Float(point.y) * unitSize]
+
+        // Visual Representation: Floating Crystal
+        var mat = PhysicallyBasedMaterial()
+        if let texture = try? TextureResource.load(named: "crystal_shard") {
+            mat.baseColor = .init(tint: .white, texture: .init(texture))
+            mat.emissiveColor = .init(color: .cyan, texture: .init(texture))
+        } else {
+            mat.baseColor = .init(tint: .cyan)
+            mat.emissiveColor = .init(color: .blue)
+        }
+        mat.emissiveIntensity = 2.0
+        mat.metallic = 1.0
+        mat.roughness = 0.1
+
+        // Use a diamond/crystal shape (octahedron-like)
+        let mesh = MeshResource.generateSphere(radius: 0.15)  // Simple sphere for now, or could use custom
+        let model = ModelEntity(mesh: mesh, materials: [mat])
+        shard.addChild(model)
+
+        // Add a glow/light effect
+        let light = PointLight()
+        light.light.color = .cyan
+        light.light.intensity = 500
+        shard.addChild(light)
+
+        // Collision for "Picking up"
+        let triggerGroup = CollisionGroup(rawValue: 1 << 1)
+        let solidGroup = CollisionGroup(rawValue: 1 << 0)
+
+        shard.components.set(
+            CollisionComponent(
+                shapes: [.generateSphere(radius: 0.3)],  // Larger trigger area
+                filter: CollisionFilter(group: triggerGroup, mask: solidGroup)
+            ))
+
+        parent.addChild(shard)
     }
 
     private func createDeathPlane(parent: Entity) {

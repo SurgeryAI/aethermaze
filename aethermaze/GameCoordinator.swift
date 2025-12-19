@@ -19,7 +19,7 @@ class GameCoordinator: ObservableObject {
     @Published var currentLevel: Int = 1
     @Published var score: Int = 0
     @Published var marblesUsed: Int = 1
-    @Published var elapsedTime: TimeInterval = 0
+    @Published var timeRemaining: TimeInterval = 60
     @Published var maxMarbles: Int = 5
     private var levelStartTime: TimeInterval = 0
     private var timer: AnyCancellable?
@@ -27,6 +27,7 @@ class GameCoordinator: ObservableObject {
     private var isRespawning = false
 
     init() {
+        resetTimerForLevel()
         startTimer()
     }
 
@@ -45,14 +46,17 @@ class GameCoordinator: ObservableObject {
 
         marblesUsed += 1
 
-        // Penalty for falling?
-        if score > 0 {
-            score = max(0, score - 50)
+        // [TIME-HEIST] Penalty for falling is now TIME
+        timeRemaining = max(0, timeRemaining - 10)
+
+        if timeRemaining <= 0 {
+            gameOver()
+            isRespawning = false
+            return
         }
 
         gameState = .playing
-        elapsedTime = 0
-        startTimer()
+        // startTimer() // Timer continues from current remaining
 
         // Reset debounce after a short delay to allow physics to settle
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -64,7 +68,8 @@ class GameCoordinator: ObservableObject {
         guard gameState == .playing else { return }
 
         // Scoring Formula
-        let timeBonus = max(0, 500 - (Int(elapsedTime) * 10))
+        // [MODIFIED] timeRemaining is now the resource
+        let timeBonus = Int(timeRemaining) * 20
         var levelScore = 1000 + timeBonus
 
         // [NEW] Perfect Level Bonus
@@ -87,9 +92,22 @@ class GameCoordinator: ObservableObject {
         // Delay slightly
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             self.gameState = .playing
-            self.elapsedTime = 0
+            self.resetTimerForLevel()
             self.startTimer()
         }
+    }
+
+    func addTime(_ seconds: TimeInterval) {
+        timeRemaining += seconds
+        // Add a small score bonus for collecting a shard too?
+        score += 100
+    }
+
+    func resetTimerForLevel() {
+        // Base time + bonus for level complexity
+        let baseTime: TimeInterval = 45
+        let levelBonus = TimeInterval(currentLevel * 10)
+        timeRemaining = baseTime + levelBonus
     }
 
     func gameOver() {
@@ -103,7 +121,7 @@ class GameCoordinator: ObservableObject {
         score = 0
         marblesUsed = 1
         maxMarbles = 5
-        elapsedTime = 0
+        resetTimerForLevel()
         isRespawning = false
         gameState = .playing
         startTimer()
@@ -111,13 +129,14 @@ class GameCoordinator: ObservableObject {
 
     private func startTimer() {
         stopTimer()
-        // Don't reset elapsedTime here if we want cumulative, but for level-based scoring we might.
-        // Actually, let's keep it simple: restartLevel resets level timer. nextLevel resets level timer.
-        // If we want total game time, we need a separate var.
-        // For now, let's stick to existing logic.
         timer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
             .sink { [weak self] _ in
-                self?.elapsedTime += 1
+                guard let self = self else { return }
+                if self.timeRemaining > 0 {
+                    self.timeRemaining -= 1
+                } else {
+                    self.gameOver()
+                }
             }
     }
 

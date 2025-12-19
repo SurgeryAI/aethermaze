@@ -21,7 +21,12 @@ struct ContentView: View {
                         HUDItem(
                             label: "SCORE", value: String(format: "%05d", gameCoordinator.score))
                         HUDDivider()
-                        HUDItem(label: "TIME", value: timeString(from: gameCoordinator.elapsedTime))
+                        HUDItem(
+                            label: "TIME", value: timeString(from: gameCoordinator.timeRemaining)
+                        )
+                        .foregroundColor(gameCoordinator.timeRemaining < 10 ? .red : .green)
+                        .shadow(
+                            color: gameCoordinator.timeRemaining < 10 ? .red : .clear, radius: 2)
                         HUDDivider()
                         HUDItem(
                             label: "LVL",
@@ -200,9 +205,23 @@ struct ARViewContainer: UIViewRepresentable {
                     HapticManager.shared.playRollingHaptic(intensity: speed)
                 }
             }
-        } else {
             // Stop sound when not playing
             SoundManager.shared.updateRollingSound(velocity: 0)
+        }
+
+        // Shard Animation logic (Rotation)
+        // Find all shards and rotate them
+        gameAnchor.children.forEach { entity in
+            if entity.name.hasPrefix("Shard_") {
+                let currentRotation = entity.transform.rotation
+                let rotationDelta = simd_quatf(angle: 0.05, axis: [0, 1, 0])
+                entity.transform.rotation = currentRotation * rotationDelta
+
+                // Bobbing effect
+                let time = Float(Date().timeIntervalSince1970)
+                let bobOffset = sin(time * 2.0) * 0.04
+                entity.position.y = 0.3 + bobOffset
+            }
         }
     }
 
@@ -358,6 +377,30 @@ struct ARViewContainer: UIViewRepresentable {
                     || (entityB.name == "RefinedWalls" && entityA.name == "Marble")
                 {
                     HapticManager.shared.playCollisionHaptic()
+                }
+
+                // Shard Collection
+                if (entityA.name == "Marble" && entityB.name.hasPrefix("Shard_"))
+                    || (entityB.name == "Marble" && entityA.name.hasPrefix("Shard_"))
+                {
+                    let shard = entityA.name.hasPrefix("Shard_") ? entityA : entityB
+                    print("Shard collected: \(shard.name)")
+
+                    DispatchQueue.main.async {
+                        gameCoordinator.addTime(15)
+                        HapticManager.shared.playSuccessHaptic()
+
+                        // "Pop" animation before removal
+                        shard.move(
+                            to: Transform(
+                                scale: [1.5, 1.5, 1.5], rotation: shard.transform.rotation,
+                                translation: shard.transform.translation), relativeTo: shard.parent,
+                            duration: 0.2)
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            shard.removeFromParent()
+                        }
+                    }
                 }
             }
         }
