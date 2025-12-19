@@ -180,24 +180,50 @@ final class MazeGenerator {
             floorEntity.addChild(model)
         }
         var shapes: [ShapeResource] = []
+        var unvisited = Set<Point>()
         for y in 0..<height {
-            var x = 0
-            while x < width {
+            for x in 0..<width {
                 if !mazeMap[y][x].hasHole {
-                    let startX = x
-                    while x < width && !mazeMap[y][x].hasHole {
-                        x += 1
+                    unvisited.insert(Point(x: x, y: y))
+                }
+            }
+        }
+
+        while let start = unvisited.first {
+            var endX = start.x
+            while endX + 1 < width && unvisited.contains(Point(x: endX + 1, y: start.y)) {
+                endX += 1
+            }
+
+            var endY = start.y
+            while endY + 1 < height {
+                var canExpand = true
+                for x in start.x...endX {
+                    if !unvisited.contains(Point(x: x, y: endY + 1)) {
+                        canExpand = false
+                        break
                     }
-                    let count = Float(x - startX)
-                    // Center point of the merged span
-                    let centerX = (Float(startX) + (count - 1) / 2.0) * unitSize
-                    let pos: SIMD3<Float> = [centerX, -0.05, Float(y) * unitSize]
-                    shapes.append(
-                        ShapeResource.generateBox(
-                            width: count * unitSize, height: 1.0, depth: unitSize
-                        ).offsetBy(translation: pos + [0, -0.45, 0]))
-                } else {
-                    x += 1
+                }
+                if !canExpand { break }
+                endY += 1
+            }
+
+            // Create shape for this rectangular block
+            let w = Float(endX - start.x + 1)
+            let d = Float(endY - start.y + 1)
+            let centerX = (Float(start.x) + (w - 1) / 2.0) * unitSize
+            let centerZ = (Float(start.y) + (d - 1) / 2.0) * unitSize
+            let pos: SIMD3<Float> = [centerX, -0.05, centerZ]
+
+            shapes.append(
+                ShapeResource.generateBox(
+                    width: w * unitSize, height: 1.0, depth: d * unitSize
+                ).offsetBy(translation: pos + [0, -0.45, 0]))
+
+            // Remove all cells in this rectangle from unvisited
+            for y in start.y...endY {
+                for x in start.x...endX {
+                    unvisited.remove(Point(x: x, y: y))
                 }
             }
         }

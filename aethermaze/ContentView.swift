@@ -67,13 +67,13 @@ struct ContentView: View {
                             index, score in
                             HStack {
                                 Text("\(index + 1).")
-                                    .frame(width: 30, alignment: .leading)
+                                    .fixedSize(horizontal: true, vertical: false)
                                 Spacer()
                                 Text("\(score)")
                             }
                             .font(.system(.body, design: .monospaced))
                             .foregroundColor(.green)
-                            .frame(width: 200)
+                            .padding(.horizontal)
                         }
 
                         Button {
