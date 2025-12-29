@@ -227,6 +227,9 @@ final class MazeGenerator {
                     unvisited.remove(Point(x: x, y: y))
                 }
             }
+
+            // [NEW] Visual indication of the floor collision block
+            createFloorGrid(start: start, w: w, d: d, parent: floorEntity)
         }
         let solidGroup = CollisionGroup(rawValue: 1 << 0)
         floorEntity.components.set(
@@ -244,9 +247,9 @@ final class MazeGenerator {
         if let holeMesh = generateHoleTileMesh() {
             var holeMaterial = PhysicallyBasedMaterial()
             holeMaterial.baseColor = .init(
-                tint: .init(red: 0.45, green: 0.3, blue: 0.15, alpha: 1.0))
-            holeMaterial.roughness = 0.6
-            holeMaterial.metallic = 0.05
+                tint: .init(red: 0.3, green: 0.2, blue: 0.1, alpha: 1.0))
+            holeMaterial.roughness = 0.8
+            holeMaterial.metallic = 0.0
             for y in 0..<height {
                 for x in 0..<width {
                     if mazeMap[y][x].hasHole {
@@ -280,6 +283,52 @@ final class MazeGenerator {
                 }
             }
         }
+    }
+
+    private func createFloorGrid(start: Point, w: Float, d: Float, parent: Entity) {
+        let borderT: Float = 0.012
+        let floorY: Float = 0.001  // Slightly above the main floor
+
+        var gridMaterial = PhysicallyBasedMaterial()
+        // Subtle cyan glow for the tech-grid lines
+        gridMaterial.baseColor = .init(tint: .cyan.withAlphaComponent(0.4))
+        gridMaterial.emissiveColor = .init(color: .cyan)
+        gridMaterial.emissiveIntensity = 1.0
+        gridMaterial.roughness = 0.2
+        gridMaterial.metallic = 1.0
+
+        // Calculate world position
+        let centerX = (Float(start.x) + (w - 1) / 2.0) * unitSize
+        let centerZ = (Float(start.y) + (d - 1) / 2.0) * unitSize
+
+        let gridRoot = Entity()
+        gridRoot.position = [centerX, floorY, centerZ]
+
+        // Horizontal lines (along X)
+        let horizontalLine = MeshResource.generateBox(
+            width: w * unitSize, height: 0.002, depth: borderT)
+
+        let topH = ModelEntity(mesh: horizontalLine, materials: [gridMaterial])
+        topH.position = [0, 0, (d * unitSize) / 2]
+        gridRoot.addChild(topH)
+
+        let bottomH = ModelEntity(mesh: horizontalLine, materials: [gridMaterial])
+        bottomH.position = [0, 0, -(d * unitSize) / 2]
+        gridRoot.addChild(bottomH)
+
+        // Vertical lines (along Z)
+        let verticalLine = MeshResource.generateBox(
+            width: borderT, height: 0.002, depth: d * unitSize)
+
+        let leftV = ModelEntity(mesh: verticalLine, materials: [gridMaterial])
+        leftV.position = [-(w * unitSize) / 2, 0, 0]
+        gridRoot.addChild(leftV)
+
+        let rightV = ModelEntity(mesh: verticalLine, materials: [gridMaterial])
+        rightV.position = [(w * unitSize) / 2, 0, 0]
+        gridRoot.addChild(rightV)
+
+        parent.addChild(gridRoot)
     }
 
     private func generateContiguousFloorMesh(width: Int, height: Int) -> MeshResource? {
