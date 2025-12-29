@@ -9,6 +9,7 @@ class SoundManager: ObservableObject {
     private var engine: AVAudioEngine!
     private var playerNode: AVAudioPlayerNode!
     private var equalizer: AVAudioUnitEQ!
+    @AppStorage("isSoundEnabled") var isSoundEnabled: Bool = true
     private var isPlaying = false
 
     init() {
@@ -101,7 +102,7 @@ class SoundManager: ObservableObject {
         let maxSpeed = 4.0  // Reference max speed
 
         let threshold: Float = 0.05  // Lower threshold
-        if speed < Double(threshold) {
+        if speed < Double(threshold) || !isSoundEnabled {
             if isPlaying {
                 playerNode.volume = 0
                 playerNode.pause()

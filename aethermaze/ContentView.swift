@@ -7,6 +7,9 @@ struct ContentView: View {
     @StateObject private var motionController = MotionController()
     @StateObject private var gameCoordinator = GameCoordinator()  // [NEW] Coordinator
 
+    @AppStorage("isSoundEnabled") private var isSoundEnabled = true
+    @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
+
     var body: some View {
         ZStack {
             // ARViewContainer hosts the 3D scene
@@ -112,6 +115,25 @@ struct ContentView: View {
                 }
             }
             .padding()
+
+            // Settings Overlay at the bottom
+            VStack {
+                Spacer()
+                HStack(spacing: 30) {
+                    RetroToggle(isOn: $isSoundEnabled, label: "SOUND", icon: "speaker.wave.2.fill")
+                    RetroToggle(isOn: $isHapticsEnabled, label: "HAPTIC", icon: "hand.tap.fill")
+                }
+                .padding(.bottom, 30)
+                .padding(.horizontal, 20)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.clear, .black.opacity(0.8)]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+            .allowsHitTesting(gameCoordinator.gameState != .gameOver)  // Disable interaction when game over overlay is active
         }
         // Capture keyboard events for the Simulator
         .focusable()
@@ -431,6 +453,55 @@ struct HUDItem: View {
         .frame(maxWidth: .infinity)
         .minimumScaleFactor(0.5)
         .lineLimit(1)
+    }
+}
+
+// Retro-styled professional toggle
+struct RetroToggle: View {
+    @Binding var isOn: Bool
+    let label: String
+    let icon: String
+
+    var body: some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                isOn.toggle()
+            }
+            if isOn {
+                HapticManager.shared.playSuccessHaptic()
+            }
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    // Outer track
+                    Capsule()
+                        .fill(Color.black.opacity(0.8))
+                        .frame(width: 50, height: 26)
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    isOn ? Color.green : Color.gray.opacity(0.5), lineWidth: 1.5)
+                        )
+                        .shadow(color: isOn ? .green.opacity(0.3) : .clear, radius: 4)
+
+                    // Thumb
+                    Circle()
+                        .fill(isOn ? Color.green : Color.gray)
+                        .frame(width: 18, height: 18)
+                        .offset(x: isOn ? 12 : -12)
+                        .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: icon)
+                        .font(.system(size: 10))
+                    Text(label)
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                }
+                .foregroundColor(isOn ? .green : .gray)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

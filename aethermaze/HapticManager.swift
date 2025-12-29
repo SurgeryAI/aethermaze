@@ -6,17 +6,21 @@
 //
 
 import Foundation
+import SwiftUI
 
 #if os(iOS)
     import UIKit
 #endif
 
-class HapticManager {
+class HapticManager: ObservableObject {
     static let shared = HapticManager()
+
+    @AppStorage("isHapticsEnabled") var isHapticsEnabled: Bool = true
 
     private init() {}
 
     func playCollisionHaptic() {
+        guard isHapticsEnabled else { return }
         #if os(iOS)
             let generator = UIImpactFeedbackGenerator(style: .heavy)
             generator.prepare()
@@ -25,6 +29,7 @@ class HapticManager {
     }
 
     func playSuccessHaptic() {
+        guard isHapticsEnabled else { return }
         #if os(iOS)
             let generator = UINotificationFeedbackGenerator()
             generator.prepare()
@@ -33,6 +38,7 @@ class HapticManager {
     }
 
     func playFailureHaptic() {
+        guard isHapticsEnabled else { return }
         #if os(iOS)
             let generator = UINotificationFeedbackGenerator()
             generator.prepare()
@@ -43,6 +49,7 @@ class HapticManager {
     private var lastRollingHapticTime: TimeInterval = 0
 
     func playRollingHaptic(intensity: Float) {
+        guard isHapticsEnabled else { return }
         #if os(iOS)
             let now = Date().timeIntervalSince1970
             // Throttle to max 10 times per second
