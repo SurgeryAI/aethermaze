@@ -2,14 +2,19 @@ import AVFoundation
 import Combine
 import SwiftUI
 
-class SoundManager: ObservableObject {
+class SoundManager {
 
     static let shared = SoundManager()
 
     private var engine: AVAudioEngine!
     private var playerNode: AVAudioPlayerNode!
     private var equalizer: AVAudioUnitEQ!
-    @AppStorage("isSoundEnabled") var isSoundEnabled: Bool = true
+
+    var isSoundEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "isSoundEnabled")
+            || UserDefaults.standard.object(forKey: "isSoundEnabled") == nil
+    }
+
     private var isPlaying = false
 
     init() {

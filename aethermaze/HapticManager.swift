@@ -12,10 +12,13 @@ import SwiftUI
     import UIKit
 #endif
 
-class HapticManager: ObservableObject {
+class HapticManager {
     static let shared = HapticManager()
 
-    @AppStorage("isHapticsEnabled") var isHapticsEnabled: Bool = true
+    var isHapticsEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "isHapticsEnabled")
+            || UserDefaults.standard.object(forKey: "isHapticsEnabled") == nil
+    }
 
     private init() {}
 
