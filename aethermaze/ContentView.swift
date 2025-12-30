@@ -262,16 +262,30 @@ struct ARViewContainer: UIViewRepresentable {
 
             gameAnchor.transform.rotation = rotation
 
-            // Optimized: Find marble once or track it
+            // Track marble velocity manually
+            static var lastMarblePosition: SIMD3<Float>?
+            static var lastUpdateTime: TimeInterval = 0
+
             if let marble = uiView.scene.findEntity(named: "Marble") as? ModelEntity {
-                if let velocity = marble.physicsMotion?.linearVelocity {
-                    let speed = length(velocity)
-                    print("🏐 Marble found! Speed: \(speed)")
-                    SoundManager.shared.updateRollingSound(velocity: speed)
-                    HapticManager.shared.playRollingHaptic(intensity: speed)
-                } else {
-                    print("❌ Marble found but NO velocity data")
+                let currentTime = Date().timeIntervalSince1970
+                let currentPosition = marble.position(relativeTo: nil)
+
+                if let lastPos = lastMarblePosition {
+                    let deltaTime = Float(currentTime - lastUpdateTime)
+                    if deltaTime > 0 {
+                        let deltaPosition = currentPosition - lastPos
+                        let velocity = deltaPosition / deltaTime
+                        let speed = length(velocity)
+                        if speed > 0.01 {
+                            print("🏐 Marble speed: \(speed)")
+                        }
+                        SoundManager.shared.updateRollingSound(velocity: speed)
+                        HapticManager.shared.playRollingHaptic(intensity: speed)
+                    }
                 }
+
+                lastMarblePosition = currentPosition
+                lastUpdateTime = currentTime
 
                 // [FIX] Apply constant downward force to keep marble grounded
                 // This prevents it from jumping at collision seams
