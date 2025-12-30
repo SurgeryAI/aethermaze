@@ -602,7 +602,9 @@ final class MazeGenerator {
         m.name = "Marble"
         m.position = [0, 0.2, 0]
         var p = PhysicsBodyComponent(
-            massProperties: .default, material: .generate(friction: 0.5, restitution: 0.0),
+            massProperties: .init(
+                mass: 0.5, inertia: simd_diagonal_matrix(SIMD3<Float>(repeating: 0.5))),  // Reduced mass for stronger gravity effect
+            material: .generate(friction: 0.5, restitution: 0.0),
             mode: .dynamic)
         p.linearDamping = 0.5
         p.angularDamping = 0.5

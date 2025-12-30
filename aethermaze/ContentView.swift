@@ -66,75 +66,81 @@ struct ContentView: View {
                 Spacer()
 
                 if gameCoordinator.gameState == .gameOver {
-                    VStack(spacing: 20) {
-                        Text("GAME OVER")
-                            .font(.system(size: 40, weight: .heavy, design: .monospaced))
-                            .foregroundColor(.red)
-                            .shadow(color: .red, radius: 2)
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            Text("GAME OVER")
+                                .font(.system(size: 40, weight: .heavy, design: .monospaced))
+                                .foregroundColor(.red)
+                                .shadow(color: .red, radius: 2)
 
-                        Text("SCORE: \(gameCoordinator.score)")
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white)
+                            Text("SCORE: \(gameCoordinator.score)")
+                                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white)
 
-                        // [NEW] High Score Celebration
-                        if gameCoordinator.isNewHighScore {
-                            Text("🎉 NEW HIGH SCORE! 🎉")
-                                .font(.system(size: 20, weight: .heavy, design: .monospaced))
-                                .foregroundColor(.yellow)
-                                .shadow(color: .yellow, radius: 3)
-                                .padding(.vertical, 5)
-                        } else if gameCoordinator.leaderboardPosition > 0
-                            && gameCoordinator.leaderboardPosition <= 10
-                        {
-                            Text("#\(gameCoordinator.leaderboardPosition) on leaderboard!")
-                                .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                .foregroundColor(.cyan)
-                        }
-
-                        // [NEW] Victory message if completed all 10 levels
-                        if gameCoordinator.currentLevel > 10 {
-                            Text("🏆 GAME COMPLETE! 🏆")
-                                .font(.system(size: 22, weight: .heavy, design: .monospaced))
-                                .foregroundColor(.green)
-                                .shadow(color: .green, radius: 3)
-                                .padding(.vertical, 5)
-                        }
-
-                        Divider()
-                            .overlay(.white)
-
-                        Text("HIGH SCORES")
-                            .font(.headline)
-                            .foregroundColor(.green)
-                            .padding(.top)
-
-                        ForEach(Array(gameCoordinator.getHighScores().enumerated()), id: \.offset) {
-                            index, score in
-                            HStack {
-                                Text("\(index + 1).")
-                                    .fixedSize(horizontal: true, vertical: false)
-                                Spacer()
-                                Text("\(score)")
+                            // [NEW] High Score Celebration
+                            if gameCoordinator.isNewHighScore {
+                                Text("🎉 NEW HIGH SCORE! 🎉")
+                                    .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(.yellow)
+                                    .shadow(color: .yellow, radius: 3)
+                                    .padding(.vertical, 5)
+                            } else if gameCoordinator.leaderboardPosition > 0
+                                && gameCoordinator.leaderboardPosition <= 10
+                            {
+                                Text("#\(gameCoordinator.leaderboardPosition) on leaderboard!")
+                                    .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.cyan)
                             }
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundColor(.green)
-                            .padding(.horizontal)
-                        }
 
-                        Button {
-                            gameCoordinator.resetGame()
-                        } label: {
-                            Text("TRY AGAIN")
-                                .font(.system(size: 20, weight: .bold, design: .monospaced))
-                                .foregroundColor(.black)
-                                .padding()
-                                .frame(width: 200)
-                                .background(Color.green)
-                                .cornerRadius(12)
+                            // [NEW] Victory message if completed all 10 levels
+                            if gameCoordinator.currentLevel > 10 {
+                                Text("🏆 GAME COMPLETE! 🏆")
+                                    .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(.green)
+                                    .shadow(color: .green, radius: 3)
+                                    .padding(.vertical, 5)
+                            }
+
+                            Divider()
+                                .overlay(.white)
+
+                            Text("HIGH SCORES")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                                .padding(.top)
+
+                            ForEach(
+                                Array(gameCoordinator.getHighScores().enumerated()), id: \.offset
+                            ) {
+                                index, score in
+                                HStack {
+                                    Text("\(index + 1).")
+                                        .fixedSize(horizontal: true, vertical: false)
+                                    Spacer()
+                                    Text("\(score)")
+                                }
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(.green)
+                                .padding(.horizontal)
+                            }
+
+                            Button {
+                                gameCoordinator.resetGame()
+                            } label: {
+                                Text("TRY AGAIN")
+                                    .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.black)
+                                    .padding()
+                                    .frame(width: 200)
+                                    .background(Color.green)
+                                    .cornerRadius(12)
+                            }
+                            .padding(.top, 20)
+                            .padding(.bottom, 10)
                         }
-                        .padding(.top, 20)
+                        .padding(30)
                     }
-                    .padding(30)
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.8)
                     .background(Color.black.opacity(0.95))
                     .cornerRadius(20)
                     .overlay(
