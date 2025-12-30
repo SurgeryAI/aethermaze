@@ -97,9 +97,9 @@ class SoundManager {
         if !engine.isRunning {
             do {
                 try engine.start()
-                playerNode.volume = 0
-                playerNode.play()
-                isPlaying = true
+                playerNode.volume = 0  // Start silent
+                playerNode.play()  // Keep playing continuously
+                print("Audio Engine started successfully")
             } catch {
                 print("Audio Engine failed: \(error)")
             }
@@ -107,32 +107,28 @@ class SoundManager {
     }
 
     func updateRollingSound(velocity: Float) {
+        guard isSoundEnabled else {
+            playerNode.volume = 0
+            return
+        }
+
         let speed = Double(velocity)
         let maxSpeed = 4.0  // Reference max speed
 
         let threshold: Float = 0.05  // Lower threshold
-        if speed < Double(threshold) || !isSoundEnabled {
-            if isPlaying {
-                playerNode.volume = 0
-                playerNode.pause()
-                isPlaying = false
-            }
+        if speed < Double(threshold) {
+            playerNode.volume = 0
             return
         }
 
         // Volume logic: subtle rumble
         let normalized = min(speed / maxSpeed, 1.0)
-        let targetVolume = Float(normalized * 1.2)  // Boosted from 0.5 to 1.2 so it's actually audible
+        let targetVolume = Float(normalized * 1.5)  // Increased for audibility
 
         // Frequency scaling
         let minFreq = 100.0
         let maxFreq = 600.0
         let targetFreq = minFreq + (maxFreq - minFreq) * normalized
-
-        if !isPlaying {
-            playerNode.play()
-            isPlaying = true
-        }
 
         playerNode.volume = targetVolume
         equalizer.bands[0].frequency = Float(targetFreq)

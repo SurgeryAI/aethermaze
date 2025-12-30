@@ -59,10 +59,10 @@ class HapticManager {
         guard isHapticsEnabled else { return }
         #if os(iOS)
             let now = Date().timeIntervalSince1970
-            // Throttle to max 10 times per second
-            guard now - lastRollingHapticTime > 0.1 else { return }
+            // Throttle to max 5 times per second
+            guard now - lastRollingHapticTime > 0.2 else { return }
 
-            if intensity > 0.2 {
+            if intensity > 0.3 {
                 let generator = UISelectionFeedbackGenerator()
                 generator.prepare()
                 generator.selectionChanged()
