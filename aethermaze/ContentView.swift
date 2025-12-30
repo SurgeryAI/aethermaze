@@ -275,8 +275,6 @@ struct ARViewContainer: UIViewRepresentable {
                 // Increased from -2.0 to -5.0 for better grounding
                 marble.addForce([0, -5.0, 0], relativeTo: nil)
             }
-            // Stop sound when not playing
-            SoundManager.shared.updateRollingSound(velocity: 0)
         }
 
         // Shard Animation logic (Rotation)
