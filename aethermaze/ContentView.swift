@@ -401,6 +401,7 @@ struct ARViewContainer: UIViewRepresentable {
                 {
                     print("Marble fell! Restarting level...")
                     HapticManager.shared.playFailureHaptic()
+                    SoundManager.shared.playFallSound()
                     DispatchQueue.main.async {
                         gameCoordinator.restartLevel()
                         if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity {
@@ -429,7 +430,7 @@ struct ARViewContainer: UIViewRepresentable {
                     || (entityB.name == "RefinedWalls" && entityA.name == "Marble")
                 {
                     HapticManager.shared.playCollisionHaptic()
-                    SoundManager.shared.playImpactSound()
+                    SoundManager.shared.playWallImpactSound()
                 }
 
                 // Shard Collection
@@ -488,7 +489,8 @@ struct ARViewContainer: UIViewRepresentable {
                     self.lastUpdateTime = currentTime
 
                     // [FIX] Grounding force at 60Hz
-                    marble.addForce([0, -8.0, 0], relativeTo: nil)
+                    // Increased from -8.0 to -15.0 for maximum stability
+                    marble.addForce([0, -15.0, 0], relativeTo: nil)
                 } else {
                     SoundManager.shared.checkRollingSoundTimeout()
                 }

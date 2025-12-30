@@ -606,8 +606,8 @@ final class MazeGenerator {
                 mass: 0.5, inertia: SIMD3<Float>(repeating: 0.5)),  // Reduced mass for stronger gravity effect
             material: .generate(friction: 0.5, restitution: 0.0),
             mode: .dynamic)
-        p.linearDamping = 0.5
-        p.angularDamping = 0.5
+        p.linearDamping = 1.5
+        p.angularDamping = 1.5
         p.isContinuousCollisionDetectionEnabled = true
         m.components.set(p)
         let solidGroup = CollisionGroup(rawValue: 1 << 0)

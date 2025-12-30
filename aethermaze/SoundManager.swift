@@ -13,6 +13,7 @@ class SoundManager {
 
     private var engine: AVAudioEngine!
     private var playerNode: AVAudioPlayerNode!
+    private var effectsPlayerNode: AVAudioPlayerNode!  // For discrete SFX
     private var equalizer: AVAudioUnitEQ!
 
     private var lastRollBurstTime: TimeInterval = 0
@@ -62,6 +63,7 @@ class SoundManager {
     private func setupAudioEngine() {
         engine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
+        effectsPlayerNode = AVAudioPlayerNode()
 
         // Create a Low Pass Filter to simulate muffling of rolling
         equalizer = AVAudioUnitEQ(numberOfBands: 1)
@@ -71,13 +73,17 @@ class SoundManager {
         filterParams.bypass = false
 
         engine.attach(playerNode)
+        engine.attach(effectsPlayerNode)
         engine.attach(equalizer)
 
         let format = engine.outputNode.inputFormat(forBus: 0)
 
-        // Connect: Player -> EQ -> MainMixer
+        // Connect Rolling Player: Player -> EQ -> MainMixer
         engine.connect(playerNode, to: equalizer, format: format)
         engine.connect(equalizer, to: engine.mainMixerNode, format: format)
+
+        // Connect Effects Player: Direct to MainMixer
+        engine.connect(effectsPlayerNode, to: engine.mainMixerNode, format: format)
 
         // Do NOT schedule any buffer for playerNode here (no continuous rolling noise)
     }
@@ -99,6 +105,53 @@ class SoundManager {
         return buffer
     }
 
+    // Synthesize a punchy "thud" for wall impacts
+    private func generateImpactBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let duration = 0.15
+        let frameCount = AVAudioFrameCount(format.sampleRate * duration)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            return nil
+        }
+        buffer.frameLength = frameCount
+        let channelCount = Int(format.channelCount)
+
+        for ch in 0..<channelCount {
+            let data = buffer.floatChannelData![ch]
+            for i in 0..<Int(frameCount) {
+                let time = Double(i) / format.sampleRate
+                let envelope = exp(-time * 25.0)  // Fast decay
+                let noise = Float.random(in: -1.0...1.0) * 0.3
+                let sine = sin(2.0 * .pi * 80.0 * time) * 0.7  // Low frequency thud
+                data[i] = Float(sine + Double(noise)) * Float(envelope)
+            }
+        }
+        return buffer
+    }
+
+    // Synthesize a descending "whistle/whoosh" for hole falls
+    private func generateFallBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let duration = 0.8
+        let frameCount = AVAudioFrameCount(format.sampleRate * duration)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            return nil
+        }
+        buffer.frameLength = frameCount
+        let channelCount = Int(format.channelCount)
+
+        for ch in 0..<channelCount {
+            let data = buffer.floatChannelData![ch]
+            for i in 0..<Int(frameCount) {
+                let time = Double(i) / format.sampleRate
+                let progress = time / duration
+                let freq = 600.0 * (1.0 - progress)  // Descending frequency
+                let envelope = sin(.pi * progress) * (1.0 - progress)  // Fade in and out
+                let sine = sin(2.0 * .pi * freq * time)
+                data[i] = Float(sine) * Float(envelope) * 0.5
+            }
+        }
+        return buffer
+    }
+
     func startEngine() {
         if !engine.isRunning {
             do {
@@ -109,8 +162,11 @@ class SoundManager {
             }
         }
         if !playerNode.isPlaying {
-            // Do not schedule buffer here; play is called only when scheduling bursts
             playerNode.volume = 0.5
+            playerNode.play()
+        }
+        if !effectsPlayerNode.isPlaying {
+            effectsPlayerNode.play()
         }
     }
 
@@ -161,13 +217,19 @@ class SoundManager {
         }
     }
 
-    func playImpactSound() {
+    func playWallImpactSound() {
         guard isSoundEnabled else { return }
-        if let url = Bundle.main.url(forResource: "impact", withExtension: "wav") {
-            impactPlayer = try? AVAudioPlayer(contentsOf: url)
-            impactPlayer?.volume = 1.0
-            impactPlayer?.prepareToPlay()
-            impactPlayer?.play()
+        let format = engine.outputNode.inputFormat(forBus: 0)
+        if let buffer = generateImpactBuffer(format: format) {
+            effectsPlayerNode.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+        }
+    }
+
+    func playFallSound() {
+        guard isSoundEnabled else { return }
+        let format = engine.outputNode.inputFormat(forBus: 0)
+        if let buffer = generateFallBuffer(format: format) {
+            effectsPlayerNode.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
         }
     }
 
