@@ -391,8 +391,7 @@ struct ARViewContainer: UIViewRepresentable {
 
         func subscribeToEvents(arView: ARView, gameCoordinator: GameCoordinator) {
             // 1. Collision Events
-            subscription = arView.scene.subscribe(to: CollisionEvents.Began.self) {
-                [weak self] event in
+            subscription = arView.scene.subscribe(to: CollisionEvents.Began.self) { event in
                 let entityA = event.entityA
                 let entityB = event.entityB
 
