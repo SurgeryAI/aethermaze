@@ -539,7 +539,7 @@ final class MazeGenerator {
 
         wz.components.set(
             CollisionComponent(
-                shapes: [.generateBox(size: [0.8, 1, 0.8])],
+                shapes: [.generateBox(size: [0.8, 0.5, 0.8]).offsetBy(translation: [0, 0.25, 0])],  // Lowered and shortened collision box
                 filter: CollisionFilter(group: triggerGroup, mask: solidGroup)  // Only interests solids (for events)
             ))
 

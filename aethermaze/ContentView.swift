@@ -272,7 +272,8 @@ struct ARViewContainer: UIViewRepresentable {
 
                 // [FIX] Apply constant downward force to keep marble grounded
                 // This prevents it from jumping at collision seams
-                marble.addForce([0, -2.0, 0], relativeTo: nil)
+                // Increased from -2.0 to -5.0 for better grounding
+                marble.addForce([0, -5.0, 0], relativeTo: nil)
             }
             // Stop sound when not playing
             SoundManager.shared.updateRollingSound(velocity: 0)
