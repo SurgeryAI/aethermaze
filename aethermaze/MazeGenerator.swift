@@ -603,7 +603,7 @@ final class MazeGenerator {
         m.position = [0, 0.2, 0]
         var p = PhysicsBodyComponent(
             massProperties: .init(
-                mass: 0.5, inertia: simd_diagonal_matrix(SIMD3<Float>(repeating: 0.5))),  // Reduced mass for stronger gravity effect
+                mass: 0.5, inertia: SIMD3<Float>(repeating: 0.5)),  // Reduced mass for stronger gravity effect
             material: .generate(friction: 0.5, restitution: 0.0),
             mode: .dynamic)
         p.linearDamping = 0.5
