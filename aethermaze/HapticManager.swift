@@ -16,8 +16,12 @@ class HapticManager {
     static let shared = HapticManager()
 
     var isHapticsEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "isHapticsEnabled")
-            || UserDefaults.standard.object(forKey: "isHapticsEnabled") == nil
+        // If key doesn't exist (first launch), return true (enabled by default)
+        // Otherwise return the stored value
+        if UserDefaults.standard.object(forKey: "isHapticsEnabled") == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "isHapticsEnabled")
     }
 
     private init() {}

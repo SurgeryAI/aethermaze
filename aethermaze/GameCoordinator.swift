@@ -21,6 +21,10 @@ class GameCoordinator: ObservableObject {
     @Published var marblesUsed: Int = 1
     @Published var timeRemaining: TimeInterval = 60
     @Published var maxMarbles: Int = 5
+    @Published var isNewHighScore: Bool = false
+    @Published var leaderboardPosition: Int = 0
+
+    private let maxLevels: Int = 10
     private var levelStartTime: TimeInterval = 0
     private var timer: AnyCancellable?
     @Published var hasFallenThisLevel: Bool = false
@@ -67,25 +71,33 @@ class GameCoordinator: ObservableObject {
     func nextLevel() {
         guard gameState == .playing else { return }
 
-        // Scoring Formula
-        // [MODIFIED] timeRemaining is now the resource
-        let timeBonus = Int(timeRemaining) * 20
+        // Simple Scoring: 1000 base + 10 per second remaining + 500 perfect bonus
+        let timeBonus = Int(timeRemaining) * 10
         var levelScore = 1000 + timeBonus
 
-        // [NEW] Perfect Level Bonus
+        // Perfect Level Bonus
         if !hasFallenThisLevel {
             levelScore += 500
         }
 
         score += levelScore
 
-        // [NEW] Bonus Marble Logic
+        // Bonus Marble Logic
         if currentLevel % 2 == 0 {
             maxMarbles += 1
         }
 
         currentLevel += 1
         hasFallenThisLevel = false
+
+        // Check if game is won (completed all 10 levels)
+        if currentLevel > maxLevels {
+            gameState = .gameOver
+            stopTimer()
+            checkForNewHighScore()
+            return
+        }
+
         gameState = .levelComplete
         stopTimer()
 
@@ -99,8 +111,8 @@ class GameCoordinator: ObservableObject {
 
     func addTime(_ seconds: TimeInterval) {
         timeRemaining += seconds
-        // Add a small score bonus for collecting a shard too?
-        score += 100
+        // Shard collection bonus: 250 points
+        score += 250
     }
 
     func resetTimerForLevel() {
@@ -113,7 +125,7 @@ class GameCoordinator: ObservableObject {
     func gameOver() {
         gameState = .gameOver
         stopTimer()
-        saveHighScore(score: score)
+        checkForNewHighScore()
     }
 
     func resetGame() {
@@ -148,10 +160,22 @@ class GameCoordinator: ObservableObject {
     // MARK: - Persistence
     private let highScoresKey = "AetherMazeHighScores"
 
-    func saveHighScore(score: Int) {
+    private func checkForNewHighScore() {
         var scores = getHighScores()
+        let oldTopScore = scores.first ?? 0
+
         scores.append(score)
         scores.sort(by: >)
+
+        // Find position in leaderboard (1-indexed)
+        if let position = scores.firstIndex(of: score) {
+            leaderboardPosition = position + 1
+        }
+
+        // Check if new high score
+        isNewHighScore = score > oldTopScore
+
+        // Keep only top 10
         if scores.count > 10 {
             scores = Array(scores.prefix(10))
         }

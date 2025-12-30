@@ -11,8 +11,12 @@ class SoundManager {
     private var equalizer: AVAudioUnitEQ!
 
     var isSoundEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "isSoundEnabled")
-            || UserDefaults.standard.object(forKey: "isSoundEnabled") == nil
+        // If key doesn't exist (first launch), return true (enabled by default)
+        // Otherwise return the stored value
+        if UserDefaults.standard.object(forKey: "isSoundEnabled") == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "isSoundEnabled")
     }
 
     private var isPlaying = false

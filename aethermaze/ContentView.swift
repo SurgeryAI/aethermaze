@@ -50,6 +50,19 @@ struct ContentView: View {
                     .frame(height: 2)
                     .foregroundColor(.green.opacity(0.5))
 
+                // [NEW] Final Level Warning
+                if gameCoordinator.currentLevel == 10 && gameCoordinator.gameState == .playing {
+                    Text("⚠️ FINAL LEVEL ⚠️")
+                        .font(.system(size: 18, weight: .heavy, design: .monospaced))
+                        .foregroundColor(.yellow)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 20)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(10)
+                        .shadow(color: .red, radius: 4)
+                        .padding(.top, 10)
+                }
+
                 Spacer()
 
                 if gameCoordinator.gameState == .gameOver {
@@ -62,6 +75,30 @@ struct ContentView: View {
                         Text("SCORE: \(gameCoordinator.score)")
                             .font(.system(size: 24, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
+
+                        // [NEW] High Score Celebration
+                        if gameCoordinator.isNewHighScore {
+                            Text("🎉 NEW HIGH SCORE! 🎉")
+                                .font(.system(size: 20, weight: .heavy, design: .monospaced))
+                                .foregroundColor(.yellow)
+                                .shadow(color: .yellow, radius: 3)
+                                .padding(.vertical, 5)
+                        } else if gameCoordinator.leaderboardPosition > 0
+                            && gameCoordinator.leaderboardPosition <= 10
+                        {
+                            Text("#\(gameCoordinator.leaderboardPosition) on leaderboard!")
+                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .foregroundColor(.cyan)
+                        }
+
+                        // [NEW] Victory message if completed all 10 levels
+                        if gameCoordinator.currentLevel > 10 {
+                            Text("🏆 GAME COMPLETE! 🏆")
+                                .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                                .foregroundColor(.green)
+                                .shadow(color: .green, radius: 3)
+                                .padding(.vertical, 5)
+                        }
 
                         Divider()
                             .overlay(.white)
