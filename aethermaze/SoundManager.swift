@@ -19,8 +19,6 @@ class SoundManager {
     private var lastRollBurstTime: TimeInterval = 0
     private let marbleRadius: Double = 0.15  // meters (adjust to your marble's size)
 
-    private var impactPlayer: AVAudioPlayer?
-
     var isSoundEnabled: Bool {
         // If key doesn't exist (first launch), return true (enabled by default)
         // Otherwise return the stored value
@@ -217,9 +215,40 @@ class SoundManager {
         }
     }
 
+    // Helper to load a .wav or .mp3 from the App Bundle into a PCM buffer
+    private func loadBuffer(fromResource resource: String, withExtension ext: String)
+        -> AVAudioPCMBuffer?
+    {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: ext) else {
+            return nil
+        }
+        do {
+            let file = try AVAudioFile(forReading: url)
+            guard
+                let buffer = AVAudioPCMBuffer(
+                    pcmFormat: file.processingFormat,
+                    frameCapacity: AVAudioFrameCount(file.length))
+            else { return nil }
+            try file.read(into: buffer)
+            return buffer
+        } catch {
+            print("❌ Error loading sound asset '\(resource).\(ext)': \(error)")
+            return nil
+        }
+    }
+
     func playWallImpactSound() {
         guard isSoundEnabled else { return }
         let format = engine.outputNode.inputFormat(forBus: 0)
+
+        // 1. Try to load from App Bundle (Kenney assets etc.)
+        if let assetBuffer = loadBuffer(fromResource: "impact", withExtension: "wav") {
+            effectsPlayerNode.scheduleBuffer(
+                assetBuffer, at: nil, options: [], completionHandler: nil)
+            return
+        }
+
+        // 2. Fallback to Synthesized sound if no asset is present
         if let buffer = generateImpactBuffer(format: format) {
             effectsPlayerNode.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
         }
@@ -228,6 +257,15 @@ class SoundManager {
     func playFallSound() {
         guard isSoundEnabled else { return }
         let format = engine.outputNode.inputFormat(forBus: 0)
+
+        // 1. Try to load from App Bundle
+        if let assetBuffer = loadBuffer(fromResource: "fall", withExtension: "wav") {
+            effectsPlayerNode.scheduleBuffer(
+                assetBuffer, at: nil, options: [], completionHandler: nil)
+            return
+        }
+
+        // 2. Fallback to Synthesized sound
         if let buffer = generateFallBuffer(format: format) {
             effectsPlayerNode.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
         }
