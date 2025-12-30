@@ -266,14 +266,19 @@ struct ARViewContainer: UIViewRepresentable {
             if let marble = uiView.scene.findEntity(named: "Marble") as? ModelEntity {
                 if let velocity = marble.physicsMotion?.linearVelocity {
                     let speed = length(velocity)
+                    print("🏐 Marble found! Speed: \(speed)")
                     SoundManager.shared.updateRollingSound(velocity: speed)
                     HapticManager.shared.playRollingHaptic(intensity: speed)
+                } else {
+                    print("❌ Marble found but NO velocity data")
                 }
 
                 // [FIX] Apply constant downward force to keep marble grounded
                 // This prevents it from jumping at collision seams
                 // Increased from -2.0 to -5.0 for better grounding
                 marble.addForce([0, -5.0, 0], relativeTo: nil)
+            } else {
+                print("❌ Marble NOT found in scene")
             }
         }
 
