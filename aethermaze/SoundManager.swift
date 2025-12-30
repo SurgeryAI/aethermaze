@@ -16,17 +16,23 @@ class SoundManager {
     private var equalizer: AVAudioUnitEQ!
 
     private var lastRollBurstTime: TimeInterval = 0
-    private let marbleRadius: Double = 0.15 // meters (adjust to your marble's size)
+    private let marbleRadius: Double = 0.15  // meters (adjust to your marble's size)
 
     private var impactPlayer: AVAudioPlayer?
 
     var isSoundEnabled: Bool {
         // If key doesn't exist (first launch), return true (enabled by default)
         // Otherwise return the stored value
-        if UserDefaults.standard.object(forKey: "isSoundEnabled") == nil {
-            return true
+        let exists = UserDefaults.standard.object(forKey: "isSoundEnabled") != nil
+        let value: Bool
+        if !exists {
+            value = true
+            print("🔊 Sound setting not found, defaulting to ENABLED")
+        } else {
+            value = UserDefaults.standard.bool(forKey: "isSoundEnabled")
+            print("🔊 Sound setting from UserDefaults: \(value ? "ENABLED" : "DISABLED")")
         }
-        return UserDefaults.standard.bool(forKey: "isSoundEnabled")
+        return value
     }
 
     private var isPlaying = false
@@ -43,9 +49,12 @@ class SoundManager {
                 // Changed from .ambient to .playback for higher volume and priority
                 try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
                 try session.setActive(true)
-                print("Audio session configured successfully")
+                print("✅ Audio session configured successfully")
+                print(
+                    "📱 Audio session category: \(session.category), volume: \(session.outputVolume)"
+                )
             } catch {
-                print("Failed to configure audio session: \(error)")
+                print("❌ Failed to configure audio session: \(error)")
             }
         #endif
     }
@@ -74,9 +83,11 @@ class SoundManager {
     }
 
     private func generateRollBurstBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        let burstDuration: Double = 0.035 // 35 ms burst
+        let burstDuration: Double = 0.035  // 35 ms burst
         let frameCount = AVAudioFrameCount(format.sampleRate * burstDuration)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return nil }
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+            return nil
+        }
         buffer.frameLength = frameCount
         let channelCount = Int(format.channelCount)
         for channel in 0..<channelCount {
@@ -104,31 +115,48 @@ class SoundManager {
     }
 
     func updateRollingSound(velocity: Float) {
+        // Debug: Check if sound is enabled
+        print(
+            "🔊 updateRollingSound called - velocity: \(velocity), isSoundEnabled: \(isSoundEnabled)"
+        )
+
         guard isSoundEnabled else {
+            print("🔇 Sound is DISABLED, stopping player")
             if playerNode.isPlaying {
                 playerNode.stop()
             }
             return
         }
+
         let speed = Double(velocity)
-        let minSpeed = 0.25 // meters/sec: only roll at meaningful speed
+        let minSpeed = 0.25  // meters/sec: only roll at meaningful speed
         if speed < minSpeed {
+            print("⚡️ Speed too low (\(speed) < \(minSpeed)), stopping player")
             if playerNode.isPlaying {
                 playerNode.stop()
             }
             return
         }
+
         // Calculate roll frequency: f = v / (2πr)
         let rollFreq = max(speed / (2 * .pi * marbleRadius), 1.0)
         let now = Date().timeIntervalSinceReferenceDate
         let interval = 1.0 / rollFreq
+
         if now - lastRollBurstTime > interval {
             lastRollBurstTime = now
+            print("🎵 Playing sound burst - speed: \(speed), rollFreq: \(rollFreq)")
+
             // Schedule a short noise burst
             let format = engine.outputNode.inputFormat(forBus: 0)
             if let burst = generateRollBurstBuffer(format: format) {
                 playerNode.scheduleBuffer(burst, at: nil, options: [], completionHandler: nil)
-                if !playerNode.isPlaying { playerNode.play() }
+                if !playerNode.isPlaying {
+                    print("▶️ Starting playerNode.play()")
+                    playerNode.play()
+                }
+            } else {
+                print("❌ Failed to generate burst buffer")
             }
         }
     }
@@ -154,4 +182,3 @@ class SoundManager {
         }
     }
 }
-
