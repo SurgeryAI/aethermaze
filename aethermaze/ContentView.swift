@@ -262,38 +262,7 @@ struct ARViewContainer: UIViewRepresentable {
 
             gameAnchor.transform.rotation = rotation
 
-            // Track marble velocity manually
-            static var lastMarblePosition: SIMD3<Float>?
-            static var lastUpdateTime: TimeInterval = 0
-
-            if let marble = uiView.scene.findEntity(named: "Marble") as? ModelEntity {
-                let currentTime = Date().timeIntervalSince1970
-                let currentPosition = marble.position(relativeTo: nil)
-
-                if let lastPos = lastMarblePosition {
-                    let deltaTime = Float(currentTime - lastUpdateTime)
-                    if deltaTime > 0 {
-                        let deltaPosition = currentPosition - lastPos
-                        let velocity = deltaPosition / deltaTime
-                        let speed = length(velocity)
-                        if speed > 0.01 {
-                            print("🏐 Marble speed: \(speed)")
-                        }
-                        SoundManager.shared.updateRollingSound(velocity: speed)
-                        HapticManager.shared.playRollingHaptic(intensity: speed)
-                    }
-                }
-
-                lastMarblePosition = currentPosition
-                lastUpdateTime = currentTime
-
-                // [FIX] Apply constant downward force to keep marble grounded
-                // This prevents it from jumping at collision seams
-                // Increased from -2.0 to -5.0 for better grounding
-                marble.addForce([0, -5.0, 0], relativeTo: nil)
-            } else {
-                print("❌ Marble NOT found in scene")
-            }
+            gameAnchor.transform.rotation = rotation
         }
 
         // Shard Animation logic (Rotation)
@@ -415,28 +384,28 @@ struct ARViewContainer: UIViewRepresentable {
     class ARCoordinator {
         var subscription: Cancellable?
 
+        // Velocity tracking for sound
+        var lastMarblePosition: SIMD3<Float>?
+        var lastUpdateTime: TimeInterval = 0
+        private var updateSubscription: Cancellable?
+
         func subscribeToEvents(arView: ARView, gameCoordinator: GameCoordinator) {
-            subscription = arView.scene.subscribe(to: CollisionEvents.Began.self) { event in
+            // 1. Collision Events
+            subscription = arView.scene.subscribe(to: CollisionEvents.Began.self) {
+                [weak self] event in
                 let entityA = event.entityA
                 let entityB = event.entityB
 
-                // Check if one is Marble and other is DeathPlane or WinZone
+                // DeathPlane / WinZone check
                 if (entityA.name == "Marble" && entityB.name == "DeathPlane")
                     || (entityB.name == "Marble" && entityA.name == "DeathPlane")
                 {
                     print("Marble fell! Restarting level...")
-                    HapticManager.shared.playFailureHaptic()  // [NEW] Haptic
+                    HapticManager.shared.playFailureHaptic()
                     DispatchQueue.main.async {
                         gameCoordinator.restartLevel()
-                        // Force reset of physics position?
-                        // The UpdateUIView loop will catch the "restart" by rebuilding if we change IDs,
-                        // OR we can manually reset position here.
-                        // Simplest for prototype: GameCoordinator toggle triggers UI update,
-                        // UpdateUIView sees state change.
-                        // Actually, purely resetting position is better than full rebuild for same level.
                         if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity {
-                            // Stop momentum
-                            marble.physicsBody?.mode = .static  // Temporary freeze
+                            marble.physicsBody?.mode = .static
                             marble.position = [0, 0.2, 0]
                             marble.physicsBody?.mode = .dynamic
                         }
@@ -448,12 +417,9 @@ struct ARViewContainer: UIViewRepresentable {
                 {
                     print("Level Complete!")
                     HapticManager.shared.playSuccessHaptic()
-
                     if let marble = (entityA.name == "Marble" ? entityA : entityB) as? ModelEntity {
-                        // Playful Jump
                         marble.applyImpulse([0, 1.5, 0], at: [0, 0, 0], relativeTo: nil)
                     }
-
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                         gameCoordinator.nextLevel()
                     }
@@ -464,6 +430,7 @@ struct ARViewContainer: UIViewRepresentable {
                     || (entityB.name == "RefinedWalls" && entityA.name == "Marble")
                 {
                     HapticManager.shared.playCollisionHaptic()
+                    SoundManager.shared.playImpactSound()
                 }
 
                 // Shard Collection
@@ -488,6 +455,43 @@ struct ARViewContainer: UIViewRepresentable {
                             shard.removeFromParent()
                         }
                     }
+                }
+            }
+
+            // 2. High-Frequency Update Loop (SceneEvents.Update)
+            updateSubscription = arView.scene.subscribe(to: SceneEvents.Update.self) {
+                [weak self] _ in
+                guard let self = self else { return }
+
+                if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity,
+                    gameCoordinator.gameState == .playing
+                {
+
+                    let currentTime = Date().timeIntervalSince1970
+                    let currentPosition = marble.position(relativeTo: nil)
+
+                    if let lastPos = self.lastMarblePosition {
+                        let deltaTime = Float(currentTime - self.lastUpdateTime)
+                        if deltaTime > 0 {
+                            let deltaPosition = currentPosition - lastPos
+                            let velocity = deltaPosition / deltaTime
+                            let speed = length(velocity)
+
+                            // 🔊 Update Rolling Sound (High Frequency)
+                            SoundManager.shared.updateRollingSound(velocity: speed)
+
+                            // 📳 Update Rolling Haptic
+                            HapticManager.shared.playRollingHaptic(intensity: speed)
+                        }
+                    }
+
+                    self.lastMarblePosition = currentPosition
+                    self.lastUpdateTime = currentTime
+
+                    // [FIX] Grounding force at 60Hz
+                    marble.addForce([0, -8.0, 0], relativeTo: nil)
+                } else {
+                    SoundManager.shared.checkRollingSoundTimeout()
                 }
             }
         }
