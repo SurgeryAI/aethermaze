@@ -269,6 +269,10 @@ struct ARViewContainer: UIViewRepresentable {
                     SoundManager.shared.updateRollingSound(velocity: speed)
                     HapticManager.shared.playRollingHaptic(intensity: speed)
                 }
+
+                // [FIX] Apply constant downward force to keep marble grounded
+                // This prevents it from jumping at collision seams
+                marble.addForce([0, -2.0, 0], relativeTo: nil)
             }
             // Stop sound when not playing
             SoundManager.shared.updateRollingSound(velocity: 0)
