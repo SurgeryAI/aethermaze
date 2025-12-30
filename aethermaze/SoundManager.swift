@@ -1,3 +1,8 @@
+//
+// To guarantee immediate muting if velocity updates stop,
+// call checkRollingSoundTimeout() regularly in your main update/game loop.
+//
+
 import AVFoundation
 import Combine
 import SwiftUI
@@ -9,6 +14,11 @@ class SoundManager {
     private var engine: AVAudioEngine!
     private var playerNode: AVAudioPlayerNode!
     private var equalizer: AVAudioUnitEQ!
+
+    private var lastRollBurstTime: TimeInterval = 0
+    private let marbleRadius: Double = 0.15 // meters (adjust to your marble's size)
+
+    private var impactPlayer: AVAudioPlayer?
 
     var isSoundEnabled: Bool {
         // If key doesn't exist (first launch), return true (enabled by default)
@@ -60,36 +70,19 @@ class SoundManager {
         engine.connect(playerNode, to: equalizer, format: format)
         engine.connect(equalizer, to: engine.mainMixerNode, format: format)
 
-        // Prepare Buffer (Brown Noise or similar)
-        if let buffer = generateNoiseBuffer(format: format) {
-            playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
-        }
+        // Do NOT schedule any buffer for playerNode here (no continuous rolling noise)
     }
 
-    private func generateNoiseBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
-        // Brown Noise: Integrate white noise. Sounds like a deep rumble/rolling.
-        let frameCount = AVAudioFrameCount(format.sampleRate)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
-            return nil
-        }
+    private func generateRollBurstBuffer(format: AVAudioFormat) -> AVAudioPCMBuffer? {
+        let burstDuration: Double = 0.035 // 35 ms burst
+        let frameCount = AVAudioFrameCount(format.sampleRate * burstDuration)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return nil }
         buffer.frameLength = frameCount
-
         let channelCount = Int(format.channelCount)
         for channel in 0..<channelCount {
             let data = buffer.floatChannelData![channel]
-            var lastValue: Float = 0
             for i in 0..<Int(frameCount) {
-                let white = Float.random(in: -1.0...1.0) * 0.1
-                var brown = lastValue + white
-
-                // Keep it in range (-1.0 to 1.0) and prevent DC drift
-                if brown > 1.0 { brown = 2.0 - brown } else if brown < -1.0 { brown = -2.0 - brown }
-
-                // Subtle high-pass filter to prevent DC offset build-up
-                brown *= 0.99
-
-                data[i] = brown * 2.5  // Significantly increased volume
-                lastValue = brown
+                data[i] = Float.random(in: -1.0...1.0) * 0.22
             }
         }
         return buffer
@@ -99,45 +92,66 @@ class SoundManager {
         if !engine.isRunning {
             do {
                 try engine.start()
-                playerNode.volume = 0  // Start silent
-                playerNode.play()  // Keep playing continuously
                 print("Audio Engine started successfully")
             } catch {
                 print("Audio Engine failed: \(error)")
             }
         }
+        if !playerNode.isPlaying {
+            // Do not schedule buffer here; play is called only when scheduling bursts
+            playerNode.volume = 0.5
+        }
     }
 
     func updateRollingSound(velocity: Float) {
         guard isSoundEnabled else {
-            playerNode.volume = 0
+            if playerNode.isPlaying {
+                playerNode.stop()
+            }
             return
         }
-
         let speed = Double(velocity)
-        let maxSpeed = 4.0  // Reference max speed
-
-        let threshold: Float = 0.05  // Lower threshold
-        if speed < Double(threshold) {
-            playerNode.volume = 0
+        let minSpeed = 0.25 // meters/sec: only roll at meaningful speed
+        if speed < minSpeed {
+            if playerNode.isPlaying {
+                playerNode.stop()
+            }
             return
         }
+        // Calculate roll frequency: f = v / (2πr)
+        let rollFreq = max(speed / (2 * .pi * marbleRadius), 1.0)
+        let now = Date().timeIntervalSinceReferenceDate
+        let interval = 1.0 / rollFreq
+        if now - lastRollBurstTime > interval {
+            lastRollBurstTime = now
+            // Schedule a short noise burst
+            let format = engine.outputNode.inputFormat(forBus: 0)
+            if let burst = generateRollBurstBuffer(format: format) {
+                playerNode.scheduleBuffer(burst, at: nil, options: [], completionHandler: nil)
+                if !playerNode.isPlaying { playerNode.play() }
+            }
+        }
+    }
 
-        // Volume logic: subtle rumble
-        let normalized = min(speed / maxSpeed, 1.0)
-        let targetVolume = Float(normalized * 3.0)  // Significantly increased for audibility
+    func playImpactSound() {
+        guard isSoundEnabled else { return }
+        if let url = Bundle.main.url(forResource: "impact", withExtension: "wav") {
+            impactPlayer = try? AVAudioPlayer(contentsOf: url)
+            impactPlayer?.volume = 1.0
+            impactPlayer?.prepareToPlay()
+            impactPlayer?.play()
+        }
+    }
 
-        // Frequency scaling
-        let minFreq = 100.0
-        let maxFreq = 600.0
-        let targetFreq = minFreq + (maxFreq - minFreq) * normalized
-
-        playerNode.volume = targetVolume
-        equalizer.bands[0].frequency = Float(targetFreq)
-
-        // Debug logging
-        if targetVolume > 0.1 {
-            print("Sound: velocity=\(velocity), volume=\(targetVolume), freq=\(targetFreq)")
+    /// Call this regularly (e.g. from your game loop) to ensure rolling sound is muted if updates stop
+    func checkRollingSoundTimeout() {
+        let now = Date().timeIntervalSinceReferenceDate
+        // If no rolling sound burst in the last 0.25 seconds, stop playerNode if playing
+        if now - lastRollBurstTime > 0.25 {
+            if playerNode.isPlaying {
+                playerNode.stop()
+            }
         }
     }
 }
+
