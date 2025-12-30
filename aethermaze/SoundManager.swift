@@ -30,8 +30,10 @@ class SoundManager {
         #if os(iOS)
             do {
                 let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.ambient, mode: .default)
+                // Changed from .ambient to .playback for higher volume and priority
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
                 try session.setActive(true)
+                print("Audio session configured successfully")
             } catch {
                 print("Failed to configure audio session: \(error)")
             }
@@ -86,7 +88,7 @@ class SoundManager {
                 // Subtle high-pass filter to prevent DC offset build-up
                 brown *= 0.99
 
-                data[i] = brown * 0.8  // Increased base volume for better visibility
+                data[i] = brown * 2.5  // Significantly increased volume
                 lastValue = brown
             }
         }
@@ -123,7 +125,7 @@ class SoundManager {
 
         // Volume logic: subtle rumble
         let normalized = min(speed / maxSpeed, 1.0)
-        let targetVolume = Float(normalized * 1.5)  // Increased for audibility
+        let targetVolume = Float(normalized * 3.0)  // Significantly increased for audibility
 
         // Frequency scaling
         let minFreq = 100.0
@@ -132,5 +134,10 @@ class SoundManager {
 
         playerNode.volume = targetVolume
         equalizer.bands[0].frequency = Float(targetFreq)
+
+        // Debug logging
+        if targetVolume > 0.1 {
+            print("Sound: velocity=\(velocity), volume=\(targetVolume), freq=\(targetFreq)")
+        }
     }
 }
