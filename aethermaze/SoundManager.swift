@@ -17,6 +17,7 @@ class SoundManager {
     private var equalizer: AVAudioUnitEQ!
 
     private var lastRollBurstTime: TimeInterval = 0
+    private var lastImpactTime: TimeInterval = 0
     private let marbleRadius: Double = 0.15  // meters (adjust to your marble's size)
 
     var isSoundEnabled: Bool {
@@ -118,8 +119,8 @@ class SoundManager {
             for i in 0..<Int(frameCount) {
                 let time = Double(i) / format.sampleRate
                 let envelope = exp(-time * 25.0)  // Fast decay
-                let noise = Float.random(in: -1.0...1.0) * 0.3
-                let sine = sin(2.0 * .pi * 80.0 * time) * 0.7  // Low frequency thud
+                let noise = Float.random(in: -1.0...1.0) * 0.15  // Reduced from 0.3
+                let sine = sin(2.0 * .pi * 80.0 * time) * 0.35  // Reduced from 0.7
                 data[i] = Float(sine + Double(noise)) * Float(envelope)
             }
         }
@@ -239,6 +240,12 @@ class SoundManager {
 
     func playWallImpactSound() {
         guard isSoundEnabled else { return }
+
+        // Cooldown check (e.g., 100ms) to prevent excessive noise frequency
+        let now = Date().timeIntervalSinceReferenceDate
+        guard now - lastImpactTime > 0.1 else { return }
+        lastImpactTime = now
+
         let format = engine.outputNode.inputFormat(forBus: 0)
 
         // 1. Try to load from App Bundle (Kenney assets etc.)
