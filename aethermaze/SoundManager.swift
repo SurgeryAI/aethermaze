@@ -252,8 +252,9 @@ class SoundManager {
         if let assetBuffer = loadBuffer(fromResource: "impact", withExtension: "wav") {
             effectsPlayerNode.scheduleBuffer(
                 assetBuffer, at: nil, options: [], completionHandler: nil)
+            print ("✅ Impact.wav loaded from App Bundle.")
             return
-        }
+        } else { print("⚠️ Warning: No impact.wav file found in App Bundle.")}
 
         // 2. Fallback to Synthesized sound if no asset is present
         if let buffer = generateImpactBuffer(format: format) {

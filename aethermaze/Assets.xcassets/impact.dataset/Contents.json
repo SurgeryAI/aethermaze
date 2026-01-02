@@ -2,7 +2,8 @@
   "data" : [
     {
       "filename" : "impact.wav",
-      "idiom" : "universal"
+      "idiom" : "universal",
+      "universal-type-identifier" : "wav"
     }
   ],
   "info" : {
