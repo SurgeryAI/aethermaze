@@ -12,6 +12,10 @@ struct ContentView: View {
     
     // State for urgency pulse animation
     @State private var urgencyPulse = false
+    
+    // State for shard collection point display
+    @State private var showShardBonus = false
+    @State private var shardBonusOffset: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -28,6 +32,48 @@ struct ContentView: View {
             // ARViewContainer hosts the 3D scene
             ARViewContainer(gameCoordinator: gameCoordinator, motionController: motionController)
                 .edgesIgnoringSafeArea(.all)
+            
+            // Shard collection point display overlay
+            if showShardBonus && gameCoordinator.lastShardBonus > 0 {
+                VStack {
+                    Spacer()
+                    
+                    HStack(spacing: 6) {
+                        Text("💎")
+                            .font(.system(size: 24))
+                        Text("+\(gameCoordinator.lastShardBonus)")
+                            .font(.system(size: 28, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.cyan)
+                        Text("+15s")
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundColor(.green)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.black.opacity(0.85))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [.cyan, .blue]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        ),
+                                        lineWidth: 2
+                                    )
+                            )
+                    )
+                    .shadow(color: .cyan.opacity(0.5), radius: 10)
+                    .offset(y: shardBonusOffset)
+                    .transition(.scale.combined(with: .opacity))
+                    
+                    Spacer()
+                        .frame(height: 200)
+                }
+                .allowsHitTesting(false)
+            }
 
             // UI Overlay
             VStack {
@@ -341,6 +387,25 @@ struct ContentView: View {
                 return .handled
             default:
                 return .ignored
+            }
+        }
+        .onChange(of: gameCoordinator.shardCollectionTrigger) { _, _ in
+            // Animate shard bonus display
+            shardBonusOffset = 0
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                showShardBonus = true
+            }
+            
+            // Animate floating up
+            withAnimation(.easeOut(duration: 1.2)) {
+                shardBonusOffset = -50
+            }
+            
+            // Hide after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showShardBonus = false
+                }
             }
         }
     }

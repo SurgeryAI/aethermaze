@@ -32,6 +32,8 @@ class GameCoordinator: ObservableObject {
     @Published var speedBonusEarned: Int = 0       // Speed bonus from last level
     @Published var shardsCollectedThisLevel: Int = 0  // Track shards per level
     @Published var totalShardsCollected: Int = 0   // Total shards in game
+    @Published var lastShardBonus: Int = 0         // Last shard bonus earned (for UI display)
+    @Published var shardCollectionTrigger: Int = 0  // Increments to trigger UI animation
 
     private let maxLevels: Int = 10
     private var levelStartTime: TimeInterval = 0
@@ -193,6 +195,10 @@ class GameCoordinator: ObservableObject {
         // Base 250, but increases with streak for that dopamine hit
         let shardBonus = Int(Double(250 + (perfectStreak * 50)) * currentMultiplier)
         score += shardBonus
+        
+        // Update UI trigger for point display animation
+        lastShardBonus = shardBonus
+        shardCollectionTrigger += 1
     }
 
     func resetTimerForLevel() {
@@ -221,6 +227,8 @@ class GameCoordinator: ObservableObject {
         speedBonusEarned = 0
         shardsCollectedThisLevel = 0
         totalShardsCollected = 0
+        lastShardBonus = 0
+        shardCollectionTrigger = 0
         resetTimerForLevel()
         isRespawning = false
         hasFallenThisLevel = false
