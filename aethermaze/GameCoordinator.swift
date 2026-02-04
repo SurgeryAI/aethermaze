@@ -26,6 +26,7 @@ class GameCoordinator: ObservableObject {
 
     // MARK: - New Engagement Features
     @Published var perfectStreak: Int = 0          // Consecutive perfect levels
+    @Published var bestStreak: Int = 0             // Best streak achieved this game
     @Published var currentMultiplier: Double = 1.0  // Score multiplier based on streak
     @Published var lastLevelScore: Int = 0         // Display for level complete screen
     @Published var speedBonusEarned: Int = 0       // Speed bonus from last level
@@ -114,6 +115,10 @@ class GameCoordinator: ObservableObject {
             perfectBonus = 1000 + (currentLevel * 100)
             // Increase streak
             perfectStreak += 1
+            // Track best streak for game stats
+            if perfectStreak > bestStreak {
+                bestStreak = perfectStreak
+            }
             updateMultiplier()
         } else {
             // Reset streak on imperfect level
@@ -168,7 +173,7 @@ class GameCoordinator: ObservableObject {
 
     private func updateMultiplier() {
         // Multiplier increases with perfect streak
-        // 1x -> 1.5x -> 2x -> 2.5x -> 3x (max)
+        // 1x -> 1.25x -> 1.5x -> 2x -> 2.5x -> 3x (max at 5+ streak)
         switch perfectStreak {
         case 0: currentMultiplier = 1.0
         case 1: currentMultiplier = 1.25
@@ -210,6 +215,7 @@ class GameCoordinator: ObservableObject {
         marblesUsed = 1
         maxMarbles = 5
         perfectStreak = 0
+        bestStreak = 0
         currentMultiplier = 1.0
         lastLevelScore = 0
         speedBonusEarned = 0

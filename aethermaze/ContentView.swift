@@ -154,7 +154,7 @@ struct ContentView: View {
                                     Text("Best Streak:")
                                         .foregroundColor(.gray)
                                     Spacer()
-                                    Text("\(gameCoordinator.perfectStreak)🔥")
+                                    Text("\(gameCoordinator.bestStreak)🔥")
                                         .foregroundColor(.orange)
                                 }
                             }
