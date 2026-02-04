@@ -9,9 +9,22 @@ struct ContentView: View {
 
     @AppStorage("isSoundEnabled") private var isSoundEnabled = true
     @AppStorage("isHapticsEnabled") private var isHapticsEnabled = true
+    
+    // State for urgency pulse animation
+    @State private var urgencyPulse = false
 
     var body: some View {
         ZStack {
+            // Urgency border overlay when time is critically low
+            if gameCoordinator.timeRemaining <= 10 && gameCoordinator.gameState == .playing {
+                RoundedRectangle(cornerRadius: 0)
+                    .stroke(Color.red.opacity(urgencyPulse ? 0.8 : 0.3), lineWidth: 8)
+                    .edgesIgnoringSafeArea(.all)
+                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: urgencyPulse)
+                    .onAppear { urgencyPulse = true }
+                    .onDisappear { urgencyPulse = false }
+            }
+            
             // ARViewContainer hosts the 3D scene
             ARViewContainer(gameCoordinator: gameCoordinator, motionController: motionController)
                 .edgesIgnoringSafeArea(.all)
@@ -22,7 +35,7 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     Group {
                         HUDItem(
-                            label: "SCORE", value: String(format: "%05d", gameCoordinator.score))
+                            label: "SCORE", value: String(format: "%06d", gameCoordinator.score))
                         HUDDivider()
                         HUDItem(
                             label: "TIME", value: timeString(from: gameCoordinator.timeRemaining)
@@ -44,6 +57,42 @@ struct ContentView: View {
                 .padding(.horizontal, 10)
                 .background(Color.black.opacity(0.9))
                 .edgesIgnoringSafeArea(.top)
+
+                // Streak & Multiplier Bar (only show when streak is active)
+                if gameCoordinator.perfectStreak > 0 && gameCoordinator.gameState == .playing {
+                    HStack(spacing: 12) {
+                        // Streak Fire Icon
+                        HStack(spacing: 4) {
+                            Text("🔥")
+                                .font(.system(size: 14))
+                            Text("STREAK: \(gameCoordinator.perfectStreak)")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundColor(.orange)
+                        }
+                        
+                        // Multiplier Badge
+                        Text("\(String(format: "%.1f", gameCoordinator.currentMultiplier))x")
+                            .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.yellow, .orange]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(8)
+                            .shadow(color: .orange.opacity(0.5), radius: 3)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 16)
+                    .background(Color.black.opacity(0.85))
+                    .cornerRadius(12)
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.7), value: gameCoordinator.perfectStreak)
+                }
 
                 // Add a divider line for that extra retro feel
                 Rectangle()
@@ -68,16 +117,54 @@ struct ContentView: View {
                 if gameCoordinator.gameState == .gameOver {
                     ScrollView {
                         VStack(spacing: 20) {
-                            Text("GAME OVER")
-                                .font(.system(size: 40, weight: .heavy, design: .monospaced))
-                                .foregroundColor(.red)
-                                .shadow(color: .red, radius: 2)
+                            // Different header if game complete vs game over
+                            if gameCoordinator.currentLevel > 10 {
+                                Text("🏆 VICTORY! 🏆")
+                                    .font(.system(size: 36, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(.yellow)
+                                    .shadow(color: .yellow, radius: 4)
+                            } else {
+                                Text("GAME OVER")
+                                    .font(.system(size: 40, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(.red)
+                                    .shadow(color: .red, radius: 2)
+                            }
 
-                            Text("SCORE: \(gameCoordinator.score)")
+                            Text("FINAL SCORE: \(gameCoordinator.score)")
                                 .font(.system(size: 24, weight: .bold, design: .monospaced))
                                 .foregroundColor(.white)
+                            
+                            // Game Stats Summary
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text("Levels Completed:")
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text("\(max(0, gameCoordinator.currentLevel - 1))/10")
+                                        .foregroundColor(.green)
+                                }
+                                HStack {
+                                    Text("Shards Collected:")
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text("\(gameCoordinator.totalShardsCollected)")
+                                        .foregroundColor(.cyan)
+                                }
+                                HStack {
+                                    Text("Best Streak:")
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text("\(gameCoordinator.bestStreak)🔥")
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                            .font(.system(size: 14, design: .monospaced))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.05))
+                            .cornerRadius(10)
 
-                            // [NEW] High Score Celebration
+                            // High Score Celebration
                             if gameCoordinator.isNewHighScore {
                                 Text("🎉 NEW HIGH SCORE! 🎉")
                                     .font(.system(size: 20, weight: .heavy, design: .monospaced))
@@ -90,15 +177,6 @@ struct ContentView: View {
                                 Text("#\(gameCoordinator.leaderboardPosition) on leaderboard!")
                                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                                     .foregroundColor(.cyan)
-                            }
-
-                            // [NEW] Victory message if completed all 10 levels
-                            if gameCoordinator.currentLevel > 10 {
-                                Text("🏆 GAME COMPLETE! 🏆")
-                                    .font(.system(size: 22, weight: .heavy, design: .monospaced))
-                                    .foregroundColor(.green)
-                                    .shadow(color: .green, radius: 3)
-                                    .padding(.vertical, 5)
                             }
 
                             Divider()
@@ -149,12 +227,76 @@ struct ContentView: View {
                     )
                     .transition(.scale)
                 } else if gameCoordinator.gameState == .levelComplete {
-                    Text("LEVEL COMPLETE!")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.green)
-                        .padding()
-                        .background(.black.opacity(0.7))
-                        .cornerRadius(20)
+                    // Enhanced Level Complete Screen with Score Breakdown
+                    VStack(spacing: 12) {
+                        Text("✨ LEVEL COMPLETE! ✨")
+                            .font(.system(size: 28, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.green)
+                            .shadow(color: .green, radius: 4)
+                        
+                        // Score breakdown
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Level Score:")
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text("+\(gameCoordinator.lastLevelScore)")
+                                    .foregroundColor(.white)
+                                    .fontWeight(.bold)
+                            }
+                            
+                            if gameCoordinator.speedBonusEarned > 0 {
+                                HStack {
+                                    Text("⚡ Speed Bonus:")
+                                        .foregroundColor(.yellow)
+                                    Spacer()
+                                    Text("+\(gameCoordinator.speedBonusEarned)")
+                                        .foregroundColor(.yellow)
+                                        .fontWeight(.bold)
+                                }
+                            }
+                            
+                            if !gameCoordinator.hasFallenThisLevel {
+                                HStack {
+                                    Text("🎯 Perfect Level!")
+                                        .foregroundColor(.cyan)
+                                    Spacer()
+                                    Text("BONUS")
+                                        .foregroundColor(.cyan)
+                                        .fontWeight(.bold)
+                                }
+                            }
+                            
+                            if gameCoordinator.currentMultiplier > 1.0 {
+                                HStack {
+                                    Text("🔥 Multiplier:")
+                                        .foregroundColor(.orange)
+                                    Spacer()
+                                    Text("\(String(format: "%.1f", gameCoordinator.currentMultiplier))x")
+                                        .foregroundColor(.orange)
+                                        .fontWeight(.heavy)
+                                }
+                            }
+                        }
+                        .font(.system(size: 14, design: .monospaced))
+                        .padding(.horizontal, 20)
+                        
+                        // Next level prompt
+                        Text("Get ready for Level \(gameCoordinator.currentLevel + 1)...")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(.gray)
+                            .padding(.top, 8)
+                    }
+                    .padding(.vertical, 20)
+                    .padding(.horizontal, 30)
+                    .background(Color.black.opacity(0.9))
+                    .cornerRadius(20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.green, lineWidth: 2)
+                    )
+                    .shadow(color: .green.opacity(0.3), radius: 10)
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
             .padding()
@@ -261,22 +403,35 @@ struct ARViewContainer: UIViewRepresentable {
                 * simd_quatf(angle: Float(-combinedRoll), axis: [0, 0, 1])
 
             gameAnchor.transform.rotation = rotation
-
-            gameAnchor.transform.rotation = rotation
         }
 
-        // Shard Animation logic (Rotation)
-        // Find all shards and rotate them
+        // Animation timing
+        let time = Float(Date().timeIntervalSince1970)
+        
+        // Shard Animation logic (Rotation + Bobbing)
         gameAnchor.children.forEach { entity in
             if entity.name.hasPrefix("Shard_") {
                 let currentRotation = entity.transform.rotation
-                let rotationDelta = simd_quatf(angle: 0.05, axis: [0, 1, 0])
+                let rotationDelta = simd_quatf(angle: 0.06, axis: [0, 1, 0])  // Slightly faster spin
                 entity.transform.rotation = currentRotation * rotationDelta
 
+                // Enhanced bobbing with slight variation per shard
+                let shardId = Float(entity.name.hashValue % 100) / 100.0
+                let bobOffset = sin(time * 2.5 + shardId * 3.14) * 0.05
+                entity.position.y = 0.32 + bobOffset
+            }
+        }
+        
+        // WinZone Beacon Animation (pulsing/bobbing)
+        if let winZone = gameAnchor.findEntity(named: "WinZone") {
+            if let beacon = winZone.findEntity(named: "WinBeacon") {
+                // Pulse scale and bobbing for the beacon
+                let pulseScale = 1.0 + sin(time * 3.0) * 0.15
+                beacon.scale = SIMD3<Float>(repeating: Float(pulseScale))
+                
                 // Bobbing effect
-                let time = Float(Date().timeIntervalSince1970)
-                let bobOffset = sin(time * 2.0) * 0.04
-                entity.position.y = 0.3 + bobOffset
+                let bobOffset = sin(time * 2.0) * 0.08
+                beacon.position.y = 0.45 + bobOffset
             }
         }
     }

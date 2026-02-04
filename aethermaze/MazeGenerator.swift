@@ -543,60 +543,97 @@ final class MazeGenerator {
                 filter: CollisionFilter(group: triggerGroup, mask: solidGroup)  // Only interests solids (for events)
             ))
 
-        // Premium Neon Goal
+        // Premium Neon Goal with enhanced glow
         var winMat = PhysicallyBasedMaterial()
-        winMat.baseColor = .init(tint: .init(red: 0.1, green: 0.8, blue: 0.2, alpha: 1.0))
+        winMat.baseColor = .init(tint: .init(red: 0.1, green: 0.9, blue: 0.3, alpha: 1.0))
         winMat.emissiveColor = .init(color: .green)
-        winMat.emissiveIntensity = 2.0
-        winMat.roughness = 0.1
-        winMat.metallic = 0.9
+        winMat.emissiveIntensity = 4.0  // Increased for more visibility
+        winMat.roughness = 0.05
+        winMat.metallic = 0.95
 
-        let pm = MeshResource.generateBox(size: [0.6, 0.02, 0.6])
+        // Base platform with glow
+        let pm = MeshResource.generateBox(size: [0.7, 0.03, 0.7])
         let p = ModelEntity(mesh: pm, materials: [winMat])
-        p.position = [0, 0.01, 0]
+        p.position = [0, 0.015, 0]
         wz.addChild(p)
+        
+        // Glowing ring around the platform
+        var ringMat = PhysicallyBasedMaterial()
+        ringMat.baseColor = .init(tint: .init(red: 0.3, green: 1.0, blue: 0.5, alpha: 0.8))
+        ringMat.emissiveColor = .init(color: .green)
+        ringMat.emissiveIntensity = 6.0
+        ringMat.roughness = 0.0
+        ringMat.metallic = 1.0
+        
+        // Create outer ring
+        let ringMesh = MeshResource.generateBox(size: [0.85, 0.01, 0.85])
+        let ring = ModelEntity(mesh: ringMesh, materials: [ringMat])
+        ring.position = [0, 0.005, 0]
+        wz.addChild(ring)
 
-        // Floating Beacon
-        let mm = MeshResource.generateSphere(radius: 0.15)
+        // Floating Beacon with enhanced glow
+        let mm = MeshResource.generateSphere(radius: 0.18)
         let m = ModelEntity(mesh: mm, materials: [winMat])
-        m.position = [0, 0.4, 0]
+        m.name = "WinBeacon"
+        m.position = [0, 0.45, 0]
         wz.addChild(m)
+        
+        // Add a point light for the goal to really make it pop
+        let goalLight = PointLight()
+        goalLight.light.color = .green
+        goalLight.light.intensity = 1500
+        goalLight.light.attenuationRadius = 3.0
+        goalLight.position = [0, 0.5, 0]
+        wz.addChild(goalLight)
+        
         parent.addChild(wz)
     }
 
     private func createStartZone(parent: Entity) {
-        // Tech Marker Base
+        // Tech Marker Base with enhanced visuals
         var baseMat = PhysicallyBasedMaterial()
-        baseMat.baseColor = .init(tint: .gray)
+        baseMat.baseColor = .init(tint: .init(red: 0.3, green: 0.35, blue: 0.4, alpha: 1.0))
         baseMat.metallic = 1.0
-        baseMat.roughness = 0.1
+        baseMat.roughness = 0.08
 
         let m = ModelEntity(
-            mesh: .generateBox(size: [0.65, 0.015, 0.65]),
+            mesh: .generateBox(size: [0.7, 0.02, 0.7]),
             materials: [baseMat])
         m.position = [0, 0.01, 0]
         m.name = "StartMarker"
 
-        // Glowing Core
+        // Glowing Cyan Core
         var coreMat = PhysicallyBasedMaterial()
         coreMat.baseColor = .init(tint: .cyan)
         coreMat.emissiveColor = .init(color: .cyan)
-        coreMat.emissiveIntensity = 3.0
+        coreMat.emissiveIntensity = 5.0
+        coreMat.roughness = 0.0
+        coreMat.metallic = 1.0
 
         let core = ModelEntity(
-            mesh: .generateCylinder(height: 0.02, radius: 0.2), materials: [coreMat])
-        core.position = [0, 0.01, 0]
+            mesh: .generateCylinder(height: 0.025, radius: 0.22), materials: [coreMat])
+        core.position = [0, 0.012, 0]
         m.addChild(core)
+        
+        // Add a subtle start light
+        let startLight = PointLight()
+        startLight.light.color = .cyan
+        startLight.light.intensity = 800
+        startLight.light.attenuationRadius = 2.0
+        startLight.position = [0, 0.3, 0]
+        m.addChild(startLight)
 
         parent.addChild(m)
     }
 
     private func create3DMarble(parent: Entity) {
         var marbleMaterial = PhysicallyBasedMaterial()
-        // Shiny Chrome / Silver look
-        marbleMaterial.baseColor = .init(tint: .init(white: 0.8, alpha: 1.0))
-        marbleMaterial.roughness = 0.05
+        // Premium polished steel/chrome marble look
+        marbleMaterial.baseColor = .init(tint: .init(white: 0.85, alpha: 1.0))
+        marbleMaterial.roughness = 0.02  // Extra shiny
         marbleMaterial.metallic = 1.0
+        
+        // Create the main marble sphere
         let m = ModelEntity(
             mesh: .generateSphere(radius: 0.15), materials: [marbleMaterial])
         m.name = "Marble"
@@ -655,28 +692,42 @@ final class MazeGenerator {
         shard.name = "Shard_\(point.x)_\(point.y)"
         shard.position = [Float(point.x) * unitSize, 0.3, Float(point.y) * unitSize]
 
-        // Visual Representation: Floating Crystal
+        // Enhanced Crystal Shard with vibrant glow
         var mat = PhysicallyBasedMaterial()
         if let texture = try? TextureResource.load(named: "crystal_shard") {
             mat.baseColor = .init(tint: .white, texture: .init(texture))
             mat.emissiveColor = .init(color: .cyan, texture: .init(texture))
         } else {
-            mat.baseColor = .init(tint: .cyan)
-            mat.emissiveColor = .init(color: .blue)
+            // Vibrant cyan/blue crystal color
+            mat.baseColor = .init(tint: .init(red: 0.3, green: 0.9, blue: 1.0, alpha: 1.0))
+            mat.emissiveColor = .init(color: .init(red: 0.2, green: 0.8, blue: 1.0, alpha: 1.0))
         }
-        mat.emissiveIntensity = 2.0
+        mat.emissiveIntensity = 5.0  // Increased glow for visibility
         mat.metallic = 1.0
-        mat.roughness = 0.1
+        mat.roughness = 0.0  // Extra shiny
 
-        // Use a diamond/crystal shape (octahedron-like)
-        let mesh = MeshResource.generateSphere(radius: 0.15)  // Simple sphere for now, or could use custom
+        // Main crystal sphere
+        let mesh = MeshResource.generateSphere(radius: 0.12)
         let model = ModelEntity(mesh: mesh, materials: [mat])
         shard.addChild(model)
+        
+        // Inner glow core (smaller, brighter)
+        var coreMat = PhysicallyBasedMaterial()
+        coreMat.baseColor = .init(tint: .white)
+        coreMat.emissiveColor = .init(color: .white)
+        coreMat.emissiveIntensity = 8.0
+        coreMat.roughness = 0.0
+        coreMat.metallic = 1.0
+        
+        let coreMesh = MeshResource.generateSphere(radius: 0.06)
+        let core = ModelEntity(mesh: coreMesh, materials: [coreMat])
+        shard.addChild(core)
 
-        // Add a glow/light effect
+        // Add a stronger glow light effect
         let light = PointLight()
         light.light.color = .cyan
-        light.light.intensity = 500
+        light.light.intensity = 1200  // Increased for better visibility
+        light.light.attenuationRadius = 2.5
         shard.addChild(light)
 
         // Collision for "Picking up"
@@ -685,7 +736,7 @@ final class MazeGenerator {
 
         shard.components.set(
             CollisionComponent(
-                shapes: [.generateSphere(radius: 0.3)],  // Larger trigger area
+                shapes: [.generateSphere(radius: 0.35)],  // Slightly larger trigger area
                 filter: CollisionFilter(group: triggerGroup, mask: solidGroup)
             ))
 
