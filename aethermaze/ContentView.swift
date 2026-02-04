@@ -562,6 +562,8 @@ struct ARViewContainer: UIViewRepresentable {
                         if let marble = arView.scene.findEntity(named: "Marble") as? ModelEntity {
                             marble.physicsBody?.mode = .static
                             marble.position = [0, 0.2, 0]
+                            // Clear any residual velocities to prevent unexpected bouncing
+                            marble.components.set(PhysicsMotionComponent(linearVelocity: .zero, angularVelocity: .zero))
                             marble.physicsBody?.mode = .dynamic
                         }
                     }
