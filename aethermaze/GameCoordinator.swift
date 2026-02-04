@@ -137,11 +137,11 @@ class GameCoordinator: ObservableObject {
         score += multipliedScore
 
         // Bonus Marble Logic - Award on streak milestones too
-        if currentLevel % 2 == 0 {
+        if currentLevel % 3 == 0 {
             maxMarbles += 1
         }
         // Bonus marble for hitting streak milestones
-        if perfectStreak == 3 || perfectStreak == 5 || perfectStreak == 7 {
+        if perfectStreak == 5 || perfectStreak == 7 {
             maxMarbles += 1
         }
 
