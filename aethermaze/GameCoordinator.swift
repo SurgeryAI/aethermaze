@@ -33,6 +33,7 @@ class GameCoordinator: ObservableObject {
     @Published var shardsCollectedThisLevel: Int = 0  // Track shards per level
     @Published var totalShardsCollected: Int = 0   // Total shards in game
     @Published var lastShardBonus: Int = 0         // Last shard bonus earned (for UI display)
+    @Published var lastShardTimeBonus: Int = 0      // Last shard time bonus earned (for UI display)
     @Published var shardCollectionTrigger: Int = 0  // Increments to trigger UI animation
 
     private let maxLevels: Int = 10
@@ -198,6 +199,7 @@ class GameCoordinator: ObservableObject {
         
         // Update UI trigger for point display animation
         lastShardBonus = shardBonus
+        lastShardTimeBonus = Int(seconds)
         shardCollectionTrigger += 1
     }
 
@@ -228,6 +230,7 @@ class GameCoordinator: ObservableObject {
         shardsCollectedThisLevel = 0
         totalShardsCollected = 0
         lastShardBonus = 0
+        lastShardTimeBonus = 0
         shardCollectionTrigger = 0
         resetTimerForLevel()
         isRespawning = false

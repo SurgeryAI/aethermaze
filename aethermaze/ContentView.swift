@@ -44,7 +44,7 @@ struct ContentView: View {
                         Text("+\(gameCoordinator.lastShardBonus)")
                             .font(.system(size: 28, weight: .heavy, design: .monospaced))
                             .foregroundColor(.cyan)
-                        Text("+15s")
+                        Text("+\(gameCoordinator.lastShardTimeBonus)s")
                             .font(.system(size: 18, weight: .bold, design: .monospaced))
                             .foregroundColor(.green)
                     }
