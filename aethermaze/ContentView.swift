@@ -408,6 +408,12 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: isSoundEnabled) { _, newValue in
+            SoundManager.shared.isSoundEnabled = newValue
+        }
+        .onChange(of: isHapticsEnabled) { _, newValue in
+            HapticManager.shared.isHapticsEnabled = newValue
+        }
     }
 }
 

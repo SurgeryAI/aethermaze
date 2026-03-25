@@ -20,24 +20,20 @@ class SoundManager {
     private var lastImpactTime: TimeInterval = 0
     private let marbleRadius: Double = 0.15  // meters (adjust to your marble's size)
 
-    var isSoundEnabled: Bool {
-        // If key doesn't exist (first launch), return true (enabled by default)
-        // Otherwise return the stored value
-        let exists = UserDefaults.standard.object(forKey: "isSoundEnabled") != nil
-        let value: Bool
-        if !exists {
-            value = true
-            print("🔊 Sound setting not found, defaulting to ENABLED")
-        } else {
-            value = UserDefaults.standard.bool(forKey: "isSoundEnabled")
-            print("🔊 Sound setting from UserDefaults: \(value ? "ENABLED" : "DISABLED")")
+    var isSoundEnabled: Bool = true {
+        didSet {
+            if !isSoundEnabled && playerNode.isPlaying {
+                playerNode.stop()
+            }
         }
-        return value
     }
 
     private var isPlaying = false
 
     init() {
+        if let _ = UserDefaults.standard.object(forKey: "isSoundEnabled") {
+            isSoundEnabled = UserDefaults.standard.bool(forKey: "isSoundEnabled")
+        }
         configureAudioSession()
         setupAudioEngine()
     }
@@ -170,13 +166,7 @@ class SoundManager {
     }
 
     func updateRollingSound(velocity: Float) {
-        // Debug: Check if sound is enabled
-        print(
-            "🔊 updateRollingSound called - velocity: \(velocity), isSoundEnabled: \(isSoundEnabled)"
-        )
-
         guard isSoundEnabled else {
-            print("🔇 Sound is DISABLED, stopping player")
             if playerNode.isPlaying {
                 playerNode.stop()
             }
@@ -186,7 +176,6 @@ class SoundManager {
         let speed = Double(velocity)
         let minSpeed = 0.25  // meters/sec: only roll at meaningful speed
         if speed < minSpeed {
-            print("⚡️ Speed too low (\(speed) < \(minSpeed)), stopping player")
             if playerNode.isPlaying {
                 playerNode.stop()
             }
@@ -200,14 +189,12 @@ class SoundManager {
 
         if now - lastRollBurstTime > interval {
             lastRollBurstTime = now
-            print("🎵 Playing sound burst - speed: \(speed), rollFreq: \(rollFreq)")
 
             // Schedule a short noise burst
             let format = engine.outputNode.inputFormat(forBus: 0)
             if let burst = generateRollBurstBuffer(format: format) {
                 playerNode.scheduleBuffer(burst, at: nil, options: [], completionHandler: nil)
                 if !playerNode.isPlaying {
-                    print("▶️ Starting playerNode.play()")
                     playerNode.play()
                 }
             } else {
