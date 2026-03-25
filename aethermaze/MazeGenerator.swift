@@ -133,10 +133,12 @@ final class MazeGenerator {
         let start = Point(x: 0, y: 0)
         let end = Point(x: width - 1, y: height - 1)
         var queue: [Point] = [start]
+        var head = 0
         var cameFrom: [Point: Point] = [:]
         var visited = Set<Point>([start])
-        while !queue.isEmpty {
-            let current = queue.removeFirst()
+        while head < queue.count {
+            let current = queue[head]
+            head += 1
             if current == end {
                 var path: [Point] = []
                 var p: Point? = current

@@ -15,16 +15,13 @@ import SwiftUI
 class HapticManager {
     static let shared = HapticManager()
 
-    var isHapticsEnabled: Bool {
-        // If key doesn't exist (first launch), return true (enabled by default)
-        // Otherwise return the stored value
-        if UserDefaults.standard.object(forKey: "isHapticsEnabled") == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: "isHapticsEnabled")
-    }
+    var isHapticsEnabled: Bool = true
 
-    private init() {}
+    private init() {
+        if let _ = UserDefaults.standard.object(forKey: "isHapticsEnabled") {
+            isHapticsEnabled = UserDefaults.standard.bool(forKey: "isHapticsEnabled")
+        }
+    }
 
     func playCollisionHaptic() {
         guard isHapticsEnabled else { return }
