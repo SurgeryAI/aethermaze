@@ -23,6 +23,11 @@ class GameCoordinator: ObservableObject {
     @Published var maxMarbles: Int = 5
     @Published var isNewHighScore: Bool = false
     @Published var leaderboardPosition: Int = 0
+    @Published var bestScore: Int = 0          // All-time best, for live "chase the record" display
+
+    // MARK: - Game-feel Triggers (increment to fire one-shot UI animations)
+    @Published var fallTrigger: Int = 0        // Marble fell → screen shake / red flash
+    @Published var levelStartTrigger: Int = 0  // New level began → level banner
 
     // MARK: - New Engagement Features
     @Published var perfectStreak: Int = 0          // Consecutive perfect levels
@@ -44,6 +49,7 @@ class GameCoordinator: ObservableObject {
     private var isRespawning = false
 
     init() {
+        bestScore = getHighScores().first ?? 0
         resetTimerForLevel()
         startTimer()
     }
@@ -53,6 +59,7 @@ class GameCoordinator: ObservableObject {
         guard gameState == .playing, !isRespawning else { return }
         isRespawning = true
         hasFallenThisLevel = true
+        fallTrigger += 1  // Fire screen-shake / damage flash
 
         // Breaking a streak when falling - but give a chance to rebuild
         if perfectStreak > 0 {
@@ -138,6 +145,7 @@ class GameCoordinator: ObservableObject {
         lastLevelScore = multipliedScore
 
         score += multipliedScore
+        bestScore = max(bestScore, score)
 
         // Bonus Marble Logic - Award on streak milestones too
         if currentLevel % 3 == 0 {
@@ -171,6 +179,7 @@ class GameCoordinator: ObservableObject {
             self.gameState = .playing
             self.resetTimerForLevel()
             self.startTimer()
+            self.levelStartTrigger += 1  // Announce the new level
         }
     }
 
@@ -196,7 +205,8 @@ class GameCoordinator: ObservableObject {
         // Base 250, but increases with streak for that dopamine hit
         let shardBonus = Int(Double(250 + (perfectStreak * 50)) * currentMultiplier)
         score += shardBonus
-        
+        bestScore = max(bestScore, score)
+
         // Update UI trigger for point display animation
         lastShardBonus = shardBonus
         lastShardTimeBonus = Int(seconds)
@@ -232,11 +242,13 @@ class GameCoordinator: ObservableObject {
         lastShardBonus = 0
         lastShardTimeBonus = 0
         shardCollectionTrigger = 0
+        bestScore = getHighScores().first ?? 0
         resetTimerForLevel()
         isRespawning = false
         hasFallenThisLevel = false
         gameState = .playing
         startTimer()
+        levelStartTrigger += 1
     }
 
     private func startTimer() {
@@ -261,6 +273,13 @@ class GameCoordinator: ObservableObject {
     private let highScoresKey = "AetherMazeHighScores"
 
     private func checkForNewHighScore() {
+        // A score of 0 doesn't earn a leaderboard slot or a "new high score" banner.
+        guard score > 0 else {
+            isNewHighScore = false
+            leaderboardPosition = 0
+            return
+        }
+
         var scores = getHighScores()
         let oldTopScore = scores.first ?? 0
 
