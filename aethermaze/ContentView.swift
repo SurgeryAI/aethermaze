@@ -276,7 +276,23 @@ struct ARViewContainer: UIViewRepresentable {
                 simd_quatf(angle: Float(combinedPitch), axis: [1, 0, 0])
                 * simd_quatf(angle: Float(-combinedRoll), axis: [0, 0, 1])
 
-            gameAnchor.transform.rotation = rotation
+            // [PIVOT FIX] Rotating the anchor directly spins the maze about the
+            // WORLD ORIGIN — which is the top-left corner (cell [0,0]) since the
+            // maze extends into +x/+z. The farther a point is from that pivot,
+            // the more it heaves vertically for a given tilt, so the lower-right
+            // goal corner bounced the marble the hardest ("bumpy lower-right").
+            // Rotate about the maze CENTER instead: the vertical heave becomes
+            // symmetric and its worst-case magnitude is halved. Camera/lights are
+            // children of the anchor, so this is visually identical.
+            let baseSize = 5 + gameCoordinator.currentLevel
+            let cols = Float(baseSize)
+            let rows = Float(Int(Double(baseSize) * 1.5))
+            let pivot = SIMD3<Float>((cols - 1.0) / 2.0, 0, (rows - 1.0) / 2.0)
+
+            var t = Transform()
+            t.rotation = rotation
+            t.translation = pivot - rotation.act(pivot)
+            gameAnchor.transform = t
         }
 
         // Animation timing
