@@ -218,9 +218,15 @@ final class MazeGenerator {
             let centerZ = (Float(start.y) + (d - 1) / 2.0) * unitSize
             let pos: SIMD3<Float> = [centerX, -0.05, centerZ]
 
+            // [SEAM FIX] Adjacent floor blocks used to *touch* exactly at cell
+            // boundaries. A sphere rolling across that shared edge would catch on the
+            // leading lip and pop upward — the "random bumps on a flat floor" the
+            // player feels. Expanding each block so neighbours OVERLAP removes the
+            // exposed internal edges while keeping every top surface flush at y = 0.
+            let seamOverlap: Float = 0.1
             shapes.append(
                 ShapeResource.generateBox(
-                    width: w * unitSize, height: 1.0, depth: d * unitSize
+                    width: w * unitSize + seamOverlap, height: 1.0, depth: d * unitSize + seamOverlap
                 ).offsetBy(translation: pos + [0, -0.45, 0]))
 
             // Remove all cells in this rectangle from unvisited
