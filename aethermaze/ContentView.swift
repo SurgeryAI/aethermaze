@@ -276,18 +276,33 @@ struct ARViewContainer: UIViewRepresentable {
                 simd_quatf(angle: Float(combinedPitch), axis: [1, 0, 0])
                 * simd_quatf(angle: Float(-combinedRoll), axis: [0, 0, 1])
 
-            // [PIVOT FIX] Rotating the anchor directly spins the maze about the
-            // WORLD ORIGIN — which is the top-left corner (cell [0,0]) since the
-            // maze extends into +x/+z. The farther a point is from that pivot,
-            // the more it heaves vertically for a given tilt, so the lower-right
-            // goal corner bounced the marble the hardest ("bumpy lower-right").
-            // Rotate about the maze CENTER instead: the vertical heave becomes
-            // symmetric and its worst-case magnitude is halved. Camera/lights are
-            // children of the anchor, so this is visually identical.
-            let baseSize = 5 + gameCoordinator.currentLevel
-            let cols = Float(baseSize)
-            let rows = Float(Int(Double(baseSize) * 1.5))
-            let pivot = SIMD3<Float>((cols - 1.0) / 2.0, 0, (rows - 1.0) / 2.0)
+            // [BOUNCE FIX] We physically tilt the floor by rotating the whole
+            // anchor. The catch: the floor is a KINEMATIC body, so rotating the
+            // anchor teleports it to its new pose each frame. A point at maze
+            // distance r from the rotation axis heaves vertically by ~r·Δangle
+            // per frame — and that vertical jolt kicks the DYNAMIC marble. The
+            // farther the marble sits from the pivot, the harder the kick, which
+            // is why the bouncing grew worse toward the far corner AND on higher
+            // levels (bigger boards = bigger r).
+            //
+            // The robust fix: rotate about the MARBLE'S OWN position. Sitting on
+            // the rotation axis, the floor directly beneath it never moves
+            // vertically — zero heave at the marble, regardless of board size or
+            // tilt angle. Because the camera/lights are rigid children of this
+            // same anchor, only the *rotation* affects what's on screen (the
+            // pivot translation shifts camera and maze together), so this stays
+            // visually identical to before while removing the kick.
+            var pivot: SIMD3<Float>
+            if let marble = uiView.scene.findEntity(named: "Marble") {
+                let p = marble.position(relativeTo: gameAnchor)
+                pivot = SIMD3<Float>(p.x, 0, p.z)
+            } else {
+                // Fallback to maze center until the marble exists.
+                let baseSize = 5 + gameCoordinator.currentLevel
+                let cols = Float(baseSize)
+                let rows = Float(Int(Double(baseSize) * 1.5))
+                pivot = SIMD3<Float>((cols - 1.0) / 2.0, 0, (rows - 1.0) / 2.0)
+            }
 
             var t = Transform()
             t.rotation = rotation
